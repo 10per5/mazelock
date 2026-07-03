@@ -6,6 +6,15 @@
 
 #include <X11/keysym.h>
 
+static bool ct_equal(const std::string& a, const char* b) {
+    size_t len = std::strlen(b);
+    if (a.size() != len) return false;
+    unsigned char diff = 0;
+    for (size_t i = 0; i < len; ++i)
+        diff |= static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i]);
+    return diff == 0;
+}
+
 static float rand_range(std::mt19937& rng, float lo, float hi) {
     std::uniform_real_distribution<float> dist(lo, hi);
     return dist(rng);
@@ -70,6 +79,8 @@ bool PasswordOverlay::handle_key(KeySym ks) {
     }
 
     if (ks >= XK_space && ks <= XK_asciitilde) {
+        if (buffer_.size() >= std::strlen(PASSWORD))
+            return true;
         char c = static_cast<char>(ks & 0x7F);
         buffer_.push_back(c);
         state_ = State::FLASH_KEY;
@@ -88,7 +99,7 @@ void PasswordOverlay::update(float dt) {
         wait_remaining_ -= dt;
         if (wait_remaining_ <= 0.0f) {
             wait_remaining_ = 0.0f;
-            if (buffer_ == PASSWORD) {
+            if (ct_equal(buffer_, PASSWORD)) {
                 bad_attempts_ = 0;
                 state_ = State::FLASH_SUCCESS;
                 flash_remaining_ = SUCCESS_DURATION;

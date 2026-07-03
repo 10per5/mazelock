@@ -7,6 +7,10 @@
 
 #include <X11/Xlib.h>
 
+#ifndef PASSWORD
+#define PASSWORD "world90s"
+#endif
+
 class PasswordOverlay {
 public:
     enum class State {
@@ -44,7 +48,6 @@ private:
     std::chrono::steady_clock::time_point last_attempt_time_;
     std::mt19937 rng_{std::random_device{}()};
 
-    static constexpr const char* PASSWORD = "world90s";
     static constexpr float FLASH_DURATION = 0.03f;
     static constexpr float SUCCESS_DURATION = 0.5f;
     static constexpr float FAILED_DURATION = 1.5f;
