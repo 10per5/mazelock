@@ -1,6 +1,6 @@
 #include "drawer.hpp"
-#include "framebuffer.hpp"
-#include "raycaster.hpp"
+#include "graphics/framebuffer.hpp"
+#include "graphics/raycaster.hpp"
 
 #include <algorithm>
 

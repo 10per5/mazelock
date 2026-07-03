@@ -5,9 +5,9 @@
 #include "player/player.hpp"
 #include "algorithm/scheduler.hpp"
 #include "entity/entity_thread.hpp"
-#include "graphics/drawer.hpp"
+#include "painter/drawer.hpp"
 #include "graphics/framebuffer.hpp"
-#include "graphics/render_manager.hpp"
+#include "painter/render_manager.hpp"
 #include "graphics/texture_manager.hpp"
 #include "algorithm/maze.hpp"
 #include "graphics/raycaster.hpp"
@@ -131,8 +131,10 @@ void World::run() {
         }
 
         // ---- Pipe screensaver (always running on secondary monitors) ----
-        fx_mgr_.update(dt);
-        fx_mgr_.render(*fb_);
+        if (fb_->num_blackouts() > 0) {
+            fx_mgr_.update(dt);
+            fx_mgr_.render(*fb_);
+        }
 
         // ---- LOCKED state update (password overlay) ----
         if (state_machine_.state() == GameStateMachine::State::LOCKED) {

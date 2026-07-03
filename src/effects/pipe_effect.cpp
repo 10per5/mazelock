@@ -42,6 +42,7 @@ void PipeEffect::resize(int width, int height) {
     grid_h_ = std::max(4, height / cell_h_);
     occ_.assign(grid_w_ * grid_h_, 0);
     segments_.clear();
+    dirty_ = true;
 
     // Seed a chain of segments so the pipe is visible immediately
     tip_gx_ = grid_w_ / 2;
@@ -95,6 +96,7 @@ void PipeEffect::grow() {
         occ_[ny * grid_w_ + nx] |= back_bit;
 
         segments_.push_back({nx, ny, tip_dir_, current_color_});
+        dirty_ = true;
         tip_gx_ = nx;
         tip_gy_ = ny;
         return;
@@ -127,6 +129,7 @@ void PipeEffect::grow() {
             uint8_t bit = 1 << static_cast<int>(d);
             occ_[gy * grid_w_ + gx] |= bit;
             segments_.push_back({gx, gy, d, current_color_});
+            dirty_ = true;
             tip_gx_ = gx;
             tip_gy_ = gy;
             tip_dir_ = d;
@@ -145,115 +148,101 @@ void PipeEffect::update(float dt) {
     }
 }
 
-void PipeEffect::render(uint32_t* buffer, int width, int height) {
-    if (grid_w_ == 0) {
-        resize(width, height);
-        // Fill background
-        for (int i = 0; i < width * height; ++i)
-            buffer[i] = 0xFF000000;
-    }
-
-    // Clear
-    std::fill(buffer, buffer + width * height, 0xFF111822);
-
-    // Draw each segment as a 3D tube spanning both directions
+void PipeEffect::draw_segment(uint32_t* buf, int bw, int bh, const Segment& seg) {
     int tube_w = std::max(2, cell_w_ * 5 / 8);
     int tube_h = std::max(2, cell_h_ * 5 / 8);
     int hw = tube_w / 2, hh = tube_h / 2;
     int half_cw = cell_w_ / 2, half_ch = cell_h_ / 2;
 
-    for (const auto& seg : segments_) {
-        int px = seg.gx * cell_w_;
-        int py = seg.gy * cell_h_;
-        int cx = px + half_cw;
-        int cy = py + half_ch;
+    int px = seg.gx * cell_w_;
+    int py = seg.gy * cell_h_;
+    int cx = px + half_cw;
+    int cy = py + half_ch;
 
-        uint32_t col = seg.color;
+    uint32_t col = seg.color;
+    int r = (col >> 16) & 0xFF;
+    int g = (col >>  8) & 0xFF;
+    int b = (col >>  0) & 0xFF;
 
-        // Extract components
-        int r = (col >> 16) & 0xFF;
-        int g = (col >>  8) & 0xFF;
-        int b = (col >>  0) & 0xFF;
-
-        // Draw tube in direction seg.dir (forward)
-        if (is_horiz(seg.dir)) {
-            int sign = (seg.dir == Dir::E) ? 1 : -1;
-            int len = half_cw;
-            for (int dy = -hh; dy <= hh; ++dy) {
-                float shade = 1.0f - 0.4f * std::abs(dy) / (hh + 1);
-                int rr = std::min(255, static_cast<int>(r * shade));
-                int gg = std::min(255, static_cast<int>(g * shade));
-                int bb = std::min(255, static_cast<int>(b * shade));
-                uint32_t c = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
-                for (int dx = 0; dx <= len; ++dx) {
-                    int sx = cx + sign * dx;
-                    int sy = cy + dy;
-                    if (sx >= 0 && sx < width && sy >= 0 && sy < height)
-                        buffer[sy * width + sx] = c;
+    if (is_horiz(seg.dir)) {
+        int sign = (seg.dir == Dir::E) ? 1 : -1;
+        for (int dy = -hh; dy <= hh; ++dy) {
+            float shade = 1.0f - 0.4f * std::abs(dy) / (hh + 1);
+            int rr = std::min(255, static_cast<int>(r * shade));
+            int gg = std::min(255, static_cast<int>(g * shade));
+            int bb = std::min(255, static_cast<int>(b * shade));
+            int sy = cy + dy;
+            int cr = rr, cg = gg, cb = bb;
+            auto tube = [&](int sx0, int step, bool skip) {
+                for (int dx = skip ? step : 0; dx * step >= 0 && dx * step <= half_cw; dx += step) {
+                    int sx = sx0 + dx;
+                    if (sx >= 0 && sx < bw && sy >= 0 && sy < bh)
+                        buf[sy * bw + sx] = 0xFF000000 | (cr << 16) | (cg << 8) | cb;
                 }
-            }
-            // Backward (opposite direction) — connects to previous cell
-            for (int dy = -hh; dy <= hh; ++dy) {
-                float shade = 1.0f - 0.4f * std::abs(dy) / (hh + 1);
-                int rr = std::min(255, static_cast<int>(r * shade));
-                int gg = std::min(255, static_cast<int>(g * shade));
-                int bb = std::min(255, static_cast<int>(b * shade));
-                uint32_t c = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
-                for (int dx = 1; dx <= len; ++dx) {
-                    int sx = cx - sign * dx;
-                    int sy = cy + dy;
-                    if (sx >= 0 && sx < width && sy >= 0 && sy < height)
-                        buffer[sy * width + sx] = c;
-                }
-            }
-        } else {
-            // Vertical tube
-            int sign = (seg.dir == Dir::S) ? 1 : -1;
-            int len = half_ch;
-            for (int dx = -hw; dx <= hw; ++dx) {
-                float shade = 1.0f - 0.4f * std::abs(dx) / (hw + 1);
-                int rr = std::min(255, static_cast<int>(r * shade));
-                int gg = std::min(255, static_cast<int>(g * shade));
-                int bb = std::min(255, static_cast<int>(b * shade));
-                uint32_t c = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
-                for (int dy = 0; dy <= len; ++dy) {
-                    int sx = cx + dx;
-                    int sy = cy + sign * dy;
-                    if (sx >= 0 && sx < width && sy >= 0 && sy < height)
-                        buffer[sy * width + sx] = c;
-                }
-            }
-            // Backward
-            for (int dx = -hw; dx <= hw; ++dx) {
-                float shade = 1.0f - 0.4f * std::abs(dx) / (hw + 1);
-                int rr = std::min(255, static_cast<int>(r * shade));
-                int gg = std::min(255, static_cast<int>(g * shade));
-                int bb = std::min(255, static_cast<int>(b * shade));
-                uint32_t c = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
-                for (int dy = 1; dy <= len; ++dy) {
-                    int sx = cx + dx;
-                    int sy = cy - sign * dy;
-                    if (sx >= 0 && sx < width && sy >= 0 && sy < height)
-                        buffer[sy * width + sx] = c;
-                }
-            }
+            };
+            tube(cx, sign, false);
+            tube(cx, -sign, true);
         }
-
-        // Joint circle at centre
-        int rad = std::max(hw, hh);
-        for (int dy = -rad; dy <= rad; ++dy) {
-            for (int dx = -rad; dx <= rad; ++dx) {
-                if (dx * dx + dy * dy > rad * rad) continue;
-                float dist = std::sqrt(static_cast<float>(dx * dx + dy * dy)) / (rad + 1);
-                float shade = 1.0f - 0.5f * dist;
-                int rr = std::min(255, static_cast<int>(r * shade));
-                int gg = std::min(255, static_cast<int>(g * shade));
-                int bb = std::min(255, static_cast<int>(b * shade));
-                int sx = cx + dx;
-                int sy = cy + dy;
-                if (sx >= 0 && sx < width && sy >= 0 && sy < height)
-                    buffer[sy * width + sx] = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
-            }
+    } else {
+        int sign = (seg.dir == Dir::S) ? 1 : -1;
+        for (int dx = -hw; dx <= hw; ++dx) {
+            float shade = 1.0f - 0.4f * std::abs(dx) / (hw + 1);
+            int rr = std::min(255, static_cast<int>(r * shade));
+            int gg = std::min(255, static_cast<int>(g * shade));
+            int bb = std::min(255, static_cast<int>(b * shade));
+            int sx = cx + dx;
+            int cr = rr, cg = gg, cb = bb;
+            auto tube = [&](int sy0, int step, bool skip) {
+                for (int dy = skip ? step : 0; dy * step >= 0 && dy * step <= half_ch; dy += step) {
+                    int sy = sy0 + dy;
+                    if (sx >= 0 && sx < bw && sy >= 0 && sy < bh)
+                        buf[sy * bw + sx] = 0xFF000000 | (cr << 16) | (cg << 8) | cb;
+                }
+            };
+            tube(cy, sign, false);
+            tube(cy, -sign, true);
         }
+    }
+
+    // Joint circle at centre
+    int rad = std::max(hw, hh);
+    for (int dy = -rad; dy <= rad; ++dy) {
+        for (int dx = -rad; dx <= rad; ++dx) {
+            if (dx * dx + dy * dy > rad * rad) continue;
+            float dist = std::sqrt(static_cast<float>(dx * dx + dy * dy)) / (rad + 1);
+            float shade = 1.0f - 0.5f * dist;
+            int rr = std::min(255, static_cast<int>(r * shade));
+            int gg = std::min(255, static_cast<int>(g * shade));
+            int bb = std::min(255, static_cast<int>(b * shade));
+            int sx = cx + dx;
+            int sy = cy + dy;
+            if (sx >= 0 && sx < bw && sy >= 0 && sy < bh)
+                buf[sy * bw + sx] = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
+        }
+    }
+}
+
+void PipeEffect::render(uint32_t* buffer, int width, int height) {
+    if (grid_w_ == 0) {
+        resize(RENDER_W, RENDER_H);
+        cache_.resize(static_cast<size_t>(RENDER_W) * RENDER_H);
+        cache_w_ = RENDER_W;
+        cache_h_ = RENDER_H;
+        dirty_ = true;
+    }
+
+    if (dirty_) {
+        std::fill(cache_.begin(), cache_.end(), 0xFF111822);
+        for (const auto& seg : segments_)
+            draw_segment(cache_.data(), cache_w_, cache_h_, seg);
+        dirty_ = false;
+    }
+
+    // Nearest-neighbour upscale from 320x200 cache to target buffer
+    for (int y = 0; y < height; ++y) {
+        int sy = y * cache_h_ / height;
+        const uint32_t* src = &cache_[sy * cache_w_];
+        for (int x = 0; x < width; ++x)
+            buffer[y * width + x] = src[x * cache_w_ / width];
     }
 }

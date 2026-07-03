@@ -6,20 +6,18 @@ Linux fullscreen maze game / screen locker. Navigate a 3D ray-cast maze with arr
 
 Use `predep` or `premake5 gmake2` to build the project. It's quite straightforward.
 
-```
-
 ## Controls
 
-| Key | Action |
-|---|---|
-| Arrow keys | Move / turn |
-| Shift | Sprint (3x speed) |
-| A–Z, 0–9 | Lock screen (during play) |
-| Type `world90s` + Enter | Unlock |
-| Escape | Cancel lock |
-| F11 | Toggle auto-walk (right-hand rule) |
-| F11 x3 | Pathfind to finish (BFS) |
-| Ctrl+Q (debug) | Quit |
+| Key                     | Action                             |
+| ----------------------- | ---------------------------------- |
+| Arrow keys              | Move / turn                        |
+| Shift                   | Sprint (3x speed)                  |
+| A–Z, 0–9                | Lock screen (during play)          |
+| Type `world90s` + Enter | Unlock                             |
+| Escape                  | Cancel lock                        |
+| F11                     | Toggle auto-walk (right-hand rule) |
+| F11 x3                  | Pathfind to finish (BFS)           |
+| Ctrl+Q (debug)          | Quit                               |
 
 ## Dependencies
 
@@ -31,4 +29,3 @@ Use `predep` or `premake5 gmake2` to build the project. It's quite straightforwa
 ## License
 
 GPL v3
-```

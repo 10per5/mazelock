@@ -53,6 +53,16 @@ private:
     float timer_ = 0.0f;
     float interval_ = 0.05f;
 
+    static constexpr int RENDER_W = 320;
+    static constexpr int RENDER_H = 200;
+
+    bool dirty_ = true;
+    int cache_w_ = 0;
+    int cache_h_ = 0;
+    std::vector<uint32_t> cache_;
+
+    void draw_segment(uint32_t* buf, int bw, int bh, const Segment& seg);
+
     // Colour palette (W95-style bright colours)
     static constexpr uint32_t PALETTE[8] = {
         0xFF0088FF, // blue
