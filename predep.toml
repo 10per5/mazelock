@@ -1,0 +1,20 @@
+main = "build"
+project = "mazelock"
+
+[[stages]]
+name = "build"
+description = "Build mazelock binary"
+type = "premake5"
+outputs = ["root://bin/mazelock"]
+clean = 1
+
+[install]
+depends = ["build"]
+artifacts = [
+    { source = "root://bin/mazelock", dest = "mazelock" },
+]
+
+[[stages]]
+name = "clean"
+description = "Clean build artifacts"
+type = "run"
