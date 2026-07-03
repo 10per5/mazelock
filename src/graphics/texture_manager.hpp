@@ -13,6 +13,7 @@ public:
     const Texture& ceiling() const { return ceiling_; }
     const Texture& coin()    const { return coin_; }
     const Texture& rat()     const { return rat_; }
+    const Texture& heart()   const { return heart_; }
 
 private:
     Texture wall_;
@@ -20,12 +21,14 @@ private:
     Texture ceiling_;
     Texture coin_;
     Texture rat_;
+    Texture heart_;
 
     void generate_wall();
     void generate_floor();
     void generate_ceiling();
     void generate_coin();
     void generate_rat();
+    void generate_heart();
 
     bool load_from_png(const std::string& dir);
 };

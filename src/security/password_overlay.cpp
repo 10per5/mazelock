@@ -1,4 +1,5 @@
 #include "password_overlay.hpp"
+#include "config.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -26,6 +27,7 @@ void PasswordOverlay::activate() {
     flash_remaining_ = 0.0f;
     wait_remaining_ = 0.0f;
     exit_requested_ = false;
+    pending_key_ = static_cast<KeySym>(0);
 }
 
 void PasswordOverlay::deactivate() {
@@ -35,14 +37,22 @@ void PasswordOverlay::deactivate() {
     wait_remaining_ = 0.0f;
     exit_requested_ = false;
     bad_attempts_ = 0;
+    pending_key_ = static_cast<KeySym>(0);
 }
 
 bool PasswordOverlay::handle_key(KeySym ks) {
     if (state_ == State::INACTIVE ||
-        state_ == State::WAITING ||
-        state_ == State::FLASH_SUCCESS ||
-        state_ == State::FLASH_FAILED)
+        state_ == State::FLASH_SUCCESS)
         return false;
+
+    if (state_ == State::WAITING || state_ == State::FLASH_FAILED) {
+        if (state_ == State::WAITING)
+            wait_remaining_ = 0.0f;
+        else
+            flash_remaining_ = 0.01f;
+        pending_key_ = ks;
+        return true;
+    }
 
     if (ks == XK_Escape) {
         deactivate();
@@ -62,9 +72,13 @@ bool PasswordOverlay::handle_key(KeySym ks) {
 
         last_attempt_time_ = now;
 
-        wait_remaining_ = rand_range(rng_, 0.3f, 0.5f);
-        if (bad_attempts_ >= 3)
-            wait_remaining_ += rand_range(rng_, 5.0f, 6.0f);
+        if (cfg.quick_fail()) {
+            wait_remaining_ = 0.01f;
+        } else {
+            wait_remaining_ = rand_range(rng_, 0.3f, 0.5f);
+            if (bad_attempts_ >= 3)
+                wait_remaining_ += rand_range(rng_, 5.0f, 6.0f);
+        }
 
         state_ = State::WAITING;
         return true;
@@ -106,7 +120,9 @@ void PasswordOverlay::update(float dt) {
             } else {
                 ++bad_attempts_;
                 state_ = State::FLASH_FAILED;
-                flash_remaining_ = FAILED_DURATION;
+                flash_remaining_ = (pending_key_ != static_cast<KeySym>(0))
+                                   ? 0.01f
+                                   : FAILED_DURATION;
             }
         }
         return;
@@ -127,6 +143,10 @@ void PasswordOverlay::update(float dt) {
             case State::FLASH_FAILED:
                 buffer_.clear();
                 state_ = State::TYPING;
+                if (pending_key_ != static_cast<KeySym>(0)) {
+                    handle_key(pending_key_);
+                    pending_key_ = static_cast<KeySym>(0);
+                }
                 break;
             default:
                 break;

@@ -39,6 +39,8 @@ Config::Config(const char* file_path, int argc, char* argv[])
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--debug") == 0)
             set_int("debug", 1);
+        if (std::strcmp(argv[i], "--quick-fail") == 0)
+            set_int("quick_fail", 1);
     }
 }
 

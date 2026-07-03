@@ -41,6 +41,4 @@ void RenderManager::render(GameStateMachine::State state, float wall_height) {
                      player_.pos_x(), player_.pos_y(),
                      player_.dir_x(), player_.dir_y(),
                      player_.path());
-
-    fb_.present();
 }

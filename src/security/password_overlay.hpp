@@ -34,6 +34,8 @@ public:
     uint32_t overlay_color() const;
     float overlay_alpha() const;
     State current_state() const { return state_; }
+    int bad_attempts() const { return bad_attempts_; }
+    void reset_bad_attempts() { bad_attempts_ = 0; }
 
     void draw_dots(uint32_t* buffer, int buf_w, int buf_h) const;
 
@@ -47,6 +49,8 @@ private:
     int bad_attempts_ = 0;
     std::chrono::steady_clock::time_point last_attempt_time_;
     std::mt19937 rng_{std::random_device{}()};
+
+    KeySym pending_key_ = static_cast<KeySym>(0);
 
     static constexpr float FLASH_DURATION = 0.03f;
     static constexpr float SUCCESS_DURATION = 0.5f;

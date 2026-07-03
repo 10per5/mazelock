@@ -13,6 +13,7 @@ bool TextureManager::init(const std::string& tex_dir) {
     generate_ceiling();
     generate_coin();
     generate_rat();
+    generate_heart();
     return true;
 #endif
 }
@@ -31,6 +32,7 @@ bool TextureManager::load_from_png(const std::string& dir) {
     load(ceiling_, "ceiling.png");
     load(coin_,    "coin.png");
     load(rat_,     "rat.png");
+    load(heart_,   "heart.png");
     return ok;
 }
 
@@ -145,6 +147,26 @@ void TextureManager::generate_rat() {
                 c = 0xFF6B4F38;
 
             rat_.set_pixel(x, y, c);
+        }
+    }
+}
+
+void TextureManager::generate_heart() {
+    int w = 16, h = 16;
+    heart_.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            float fx = (x + 0.5f) / 16.0f * 2.0f - 1.0f;
+            float fy = (y + 0.5f) / 16.0f * 2.0f - 1.0f;
+            float xx = fx * 1.4f;
+            float yy = -fy * 1.3f - 0.1f;
+            float x2 = xx * xx;
+            float y2 = yy * yy;
+            float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * yy * yy * yy;
+            if (val <= 0.0f)
+                heart_.set_pixel(x, y, 0xFFFF2040);
+            else
+                heart_.set_pixel(x, y, 0x00000000);
         }
     }
 }

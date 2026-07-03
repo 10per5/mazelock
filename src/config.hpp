@@ -28,6 +28,7 @@ public:
     float  target_fps()       const { return get_float("target_fps", 30.0f); }
     float  idle_fps()         const { return get_float("idle_fps", 15.0f); }
     float  restart_delay()    const { return get_float("restart_delay", 4.0f); }
+    bool   quick_fail()       const { return get_int("quick_fail", 0) != 0; }
 
 private:
     struct Impl;

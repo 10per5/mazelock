@@ -12,6 +12,7 @@
 #include "algorithm/maze.hpp"
 #include "graphics/raycaster.hpp"
 #include "security/password_overlay.hpp"
+#include "ui/heart_display.hpp"
 #include "effects/pipe_effect.hpp"
 
 #include <chrono>
@@ -51,10 +52,13 @@ World::World(Config& cfg, int argc, char* argv[])
 
     renderer_ = new RenderManager(*fb_, *raycaster_, *entities_,
                                    *pw_overlay_, *drawer_, *maze_, *player_);
+
+    hearts_ = new HeartDisplay(*pw_overlay_, *texman_);
 }
 
 World::~World() {
     fx_mgr_.shutdown(*fb_);
+    delete hearts_;
     delete renderer_;
     delete drawer_;
     delete player_;
@@ -202,10 +206,13 @@ void World::run() {
             maze_->regenerate();
             entities_->init(*maze_);
             player_->reset();
+            pw_overlay_->reset_bad_attempts();
         }
 
         // ---- Rendering ----
         renderer_->render(state_machine_.state(), state_machine_.wall_height());
+        hearts_->draw(*fb_);
+        fb_->present();
     }
 
     fb_->blackout_other_windows(false);

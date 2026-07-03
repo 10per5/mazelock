@@ -15,6 +15,7 @@ class PasswordOverlay;
 class Player;
 class Drawer;
 class RenderManager;
+class HeartDisplay;
 
 class World {
 public:
@@ -28,6 +29,7 @@ private:
     GameStateMachine state_machine_;
     EffectManager fx_mgr_;
     RenderManager* renderer_ = nullptr;
+    HeartDisplay* hearts_ = nullptr;
 
     Framebuffer* fb_ = nullptr;
     TextureManager* texman_ = nullptr;
