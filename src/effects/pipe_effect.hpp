@@ -32,6 +32,8 @@ private:
     static int  grid_y(Dir d);
 
     void grow();
+    void seed_chain();
+    void redraw_cell(int gx, int gy);
     bool occupied(int gx, int gy, Dir d) const;
 
     int grid_w_ = 0;
@@ -57,6 +59,17 @@ private:
     static constexpr int RENDER_H = 200;
 
     bool dirty_ = true;
+
+    enum Phase : uint8_t { DRAW, UNDRAW, IDLE };
+    Phase phase_ = DRAW;
+    int erased_count_ = 0;
+    std::vector<uint8_t> erased_;
+    int undraw_gx_ = 0;
+    int undraw_gy_ = 0;
+    Dir undraw_dir_ = Dir::E;
+    std::vector<Segment> undraw_segments_;
+    float idle_timer_ = 0.0f;
+
     int cache_w_ = 0;
     int cache_h_ = 0;
     std::vector<uint32_t> cache_;
