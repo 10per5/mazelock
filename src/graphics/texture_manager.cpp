@@ -69,7 +69,6 @@ void TextureManager::generate_floor() {
             int r = 130 + noise;
             int g = 85 + noise;
             int b = 40 + noise;
-            if (y % 8 == 0) { r = 80; g = 55; b = 30; }
             floor_.set_pixel(x, y,
                 0xFF000000 | (r << 16) | (g << 8) | b);
         }

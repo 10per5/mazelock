@@ -166,8 +166,10 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
         flush_pending();
         ++steps_;
 
-        // Auto-reverse on consume
-        if (consume_check_ && consume_check_(cell_x_, cell_y_)) {
+        // Auto-reverse on consume (runs BEFORE strategy callback so reverse
+        // is never overwritten by plan_next_step).
+        bool consumed = consume_check_ && consume_check_(cell_x_, cell_y_);
+        if (consumed) {
             int back_dir = (direction_ + 2) % 4;
             plan_move(back_dir);
             if (cfg.debug_mode())
@@ -184,8 +186,8 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
             return;
         }
 
-        // Strategy callback — plan next step
-        if (plan_next && plan_next()) {
+        // Strategy callback — skip if we already reversed from consume
+        if (!consumed && plan_next && plan_next()) {
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
             return;
         }

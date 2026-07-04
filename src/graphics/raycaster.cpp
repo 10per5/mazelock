@@ -175,7 +175,18 @@ void Raycaster::cast(const MazeGenerator& maze, float pos_x, float pos_y, float 
                         int ty = static_cast<int>(wy * floor_scale) % fl_h;
                         if (tx < 0) tx += fl_w;
                         if (ty < 0) ty += fl_h;
-                        color_buffer_[y * RENDER_W + x] = floor_tex_->pixel(tx, ty);
+                        uint32_t fc = floor_tex_->pixel(tx, ty);
+                        int cx = static_cast<int>(std::floor(wx));
+                        int cy = static_cast<int>(std::floor(wy));
+                        if (ty % 8 == 0 && cx >= 0 && cx < maze_w && cy >= 0 && cy < maze_h) {
+                            if (maze.cell(cx, cy).walls[0]) {
+                                int r = ((fc >> 16) & 0xFF) * 2 / 3;
+                                int g = ((fc >>  8) & 0xFF) * 2 / 3;
+                                int b = (fc        & 0xFF) * 2 / 3;
+                                fc = 0xFF000000 | (r << 16) | (g << 8) | b;
+                            }
+                        }
+                        color_buffer_[y * RENDER_W + x] = fc;
                     } else {
                         color_buffer_[y * RENDER_W + x] = 0xFF333333;
                     }
