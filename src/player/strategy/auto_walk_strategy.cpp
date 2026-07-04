@@ -168,7 +168,7 @@ void AutoWalkStrategy::update(float dt, float& pos_x, float& pos_y,
     if (walker_.finished()) return;
     if (pause_ > 0) { --pause_; return; }
 
-    if (!walker_.advancing())
+    if (!walker_.advancing() && !walker_.consuming())
         plan_next_step(maze);
 
     walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt,

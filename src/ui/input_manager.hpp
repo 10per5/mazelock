@@ -7,6 +7,7 @@
 #include <X11/keysym.h>
 
 struct KeyState {
+    bool f1_pressed = false;
     bool up = false, down = false, left = false, right = false;
     bool shift = false;
     bool quit_requested = false;

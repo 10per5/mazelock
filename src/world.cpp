@@ -137,6 +137,21 @@ void World::run() {
             }
         }
 
+        // ---- F1 — reset to start ----
+        {
+            const auto& keys = input_mgr_.state();
+            static bool f1_edge = false;
+            if (keys.f1_pressed && !f1_edge) {
+                f1_edge = true;
+                player_->reset();
+                entities_->init(*maze_);
+                if (cfg.debug_mode())
+                    printf("[WORLD] F1 — reset to start\n");
+            } else if (!keys.f1_pressed) {
+                f1_edge = false;
+            }
+        }
+
         // ---- Force quit (gated on --debug) ----
         if (input_mgr_.state().quit_requested && cfg_.debug_mode()) {
             running = false;

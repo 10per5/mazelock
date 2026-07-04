@@ -96,6 +96,7 @@ void Walker::teleport(int x, int y, int dir) {
     finished_ = false;
     stepping_ = false;
     pending_dir_ = -1;
+    consume_pause_ = 0;
     start_x_ = static_cast<float>(x) + 0.5f;
     start_y_ = static_cast<float>(y) + 0.5f;
     start_angle_ = static_cast<float>(dir) * PI_2 - PI_2;
@@ -133,6 +134,7 @@ void Walker::reset() {
     steps_ = 0;
     stepping_ = false;
     pending_dir_ = -1;
+    consume_pause_ = 0;
     start_x_ = end_x_ = 0.5f;
     start_y_ = end_y_ = 0.5f;
     start_angle_ = end_angle_ = 0.0f;
@@ -150,6 +152,20 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
                     float speed, const StepCallback& plan_next) {
     if (finished_) return;
 
+    // Consume pause: hold position for a few frames so the player can see
+    // the animal flee before reversing.
+    if (consume_pause_ > 0) {
+        if (--consume_pause_ == 0) {
+            int back_dir = (direction_ + 2) % 4;
+            plan_move(back_dir);
+            step_ = 0.0f;
+        } else {
+            hold_position();
+        }
+        snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+        return;
+    }
+
     // In manual mode, freeze the walker when idle so it doesn't drift
     if (freeze_when_idle_ && !stepping_)
         hold_position();
@@ -166,15 +182,15 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
         flush_pending();
         ++steps_;
 
-        // Auto-reverse on consume (runs BEFORE strategy callback so reverse
-        // is never overwritten by plan_next_step).
+        // Consume check — pause to let the flee animation play before reversing.
         bool consumed = consume_check_ && consume_check_(cell_x_, cell_y_);
         if (consumed) {
-            int back_dir = (direction_ + 2) % 4;
-            plan_move(back_dir);
+            consume_pause_ = CONSUME_PAUSE_FRAMES;
             if (cfg.debug_mode())
-                printf("[WALKER] reverse via consume at (%d,%d)\n",
+                printf("[WALKER] consumed at (%d,%d) — pause before reverse\n",
                        cell_x_, cell_y_);
+            snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+            return;
         }
 
         // Finish detection

@@ -39,6 +39,7 @@ public:
     void reset();
 
     bool has_pending() const { return pending_dir_ >= 0; }
+    bool consuming() const { return consume_pause_ > 0; }
 
     // Consume callback — called after each step; if set and returns true, walker auto-reverses
     using ConsumeCheck = std::function<bool(int,int)>;
@@ -88,9 +89,11 @@ private:
     MazeGenerator* maze_ = nullptr;
     bool god_mode_ = false;
     bool freeze_when_idle_ = false;
+    int consume_pause_ = 0;
 
 public:
     ConsumeCheck consume_check_;
+    static constexpr int CONSUME_PAUSE_FRAMES = 30;
     static constexpr int dx[4] = { 0, 1, 0, -1 };
     static constexpr int dy[4] = {-1, 0, 1,  0 };
 };

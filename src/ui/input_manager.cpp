@@ -5,6 +5,7 @@ void InputManager::on_event(KeySym ks, bool press) {
         press_queue_.push_back(ks);
 
     switch (ks) {
+    case XK_F1:       state_.f1_pressed = press; break;
     case XK_Up:       state_.up    = press; break;
     case XK_Down:     state_.down  = press; break;
     case XK_Left:     state_.left  = press; break;
