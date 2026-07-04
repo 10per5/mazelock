@@ -15,8 +15,11 @@
 #include "security/password_overlay.hpp"
 #include "ui/heart_display.hpp"
 #include "effects/pipe_effect.hpp"
+#include "effects/fish_aquarium.hpp"
+#include "effects/flower_magnifier.hpp"
 
 #include <chrono>
+#include <random>
 
 #include <unistd.h>
 
@@ -70,8 +73,17 @@ void World::run() {
 
     bool running = true;
 
-    // Pipe screensaver runs on secondary monitors at all times
-    fx_mgr_.set_effect(std::make_unique<PipeEffect>());
+    // A screensaver runs on secondary monitors at all times — pick one
+    // of the available effects at random each launch.
+    {
+        std::mt19937 effect_rng{std::random_device{}()};
+        int choice = std::uniform_int_distribution<int>(0, 2)(effect_rng);
+        switch (choice) {
+            case 0:  fx_mgr_.set_effect(std::make_unique<PipeEffect>()); break;
+            case 1:  fx_mgr_.set_effect(std::make_unique<FishAquariumEffect>()); break;
+            default: fx_mgr_.set_effect(std::make_unique<FlowerMagnifierEffect>(*texman_)); break;
+        }
+    }
 
     while (running) {
         auto now = std::chrono::high_resolution_clock::now();

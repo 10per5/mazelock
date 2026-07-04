@@ -2,6 +2,8 @@
 #include "effect.hpp"
 #include "graphics/framebuffer.hpp"
 
+#include <cstring>
+
 EffectManager::~EffectManager() = default;
 
 void EffectManager::init(Framebuffer& fb) {
@@ -37,11 +39,29 @@ void EffectManager::update(float dt) {
 void EffectManager::render(Framebuffer& fb) {
     if (!effect_) return;
 
-    // Render to each blackout monitor
+    // Most multi-monitor rigs have at least one pair of identical panels.
+    // Render once per distinct (width, height) and memcpy the finished
+    // frame to any other monitor that matches, instead of re-running the
+    // whole effect (which is real CPU work, not just the final blit).
+    int last_w = -1, last_h = -1;
+    const uint32_t* last_buf = nullptr;
+
     for (size_t i = 0; i < monitors_.size(); ++i) {
         auto* buf = fb.blackout_pixels(static_cast<int>(i));
         if (!buf) continue;
-        effect_->render(buf, monitors_[i].width, monitors_[i].height);
+
+        int w = monitors_[i].width;
+        int h = monitors_[i].height;
+
+        if (last_buf && w == last_w && h == last_h) {
+            std::memcpy(buf, last_buf, static_cast<size_t>(w) * h * sizeof(uint32_t));
+        } else {
+            effect_->render(buf, w, h);
+        }
         fb.present_blackout(static_cast<int>(i));
+
+        last_buf = buf;
+        last_w = w;
+        last_h = h;
     }
 }

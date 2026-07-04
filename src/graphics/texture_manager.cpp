@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <algorithm>
 
 #include "game/singleton.hpp"
 
@@ -18,6 +19,7 @@ bool TextureManager::init(const std::string& tex_dir) {
     generate_heart();
     generate_start();
     generate_goal();
+    generate_flowers();
     return true;
 #endif
 }
@@ -39,6 +41,19 @@ bool TextureManager::load_from_png(const std::string& dir) {
     load(heart_,   "heart.png");
     load(start_,   "start.png");
     load(goal_,    "goal.png");
+
+    // Flower art is optional even in PNG mode — fall back to procedural
+    // designs per-slot instead of failing the whole load.
+    static const char* flower_files[FLOWER_COUNT] = {
+        "flower0.png", "flower1.png", "flower2.png", "flower3.png"
+    };
+    generate_flowers();
+    for (int i = 0; i < FLOWER_COUNT; ++i) {
+        std::string path = dir + "/" + flower_files[i];
+        if (!flowers_[i].load_png(path))
+            g_logger->log("No %s found, using procedural flower design", flower_files[i]);
+    }
+
     return ok;
 }
 
@@ -204,6 +219,137 @@ void TextureManager::generate_start() {
                     c = 0xFF006600;
             }
             start_.set_pixel(x, y, c);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Flower designs — used by FlowerMagnifierEffect. 32x32, alpha 0x00 outside
+// the petals so the effect can composite over its own background.
+// ---------------------------------------------------------------------------
+
+void TextureManager::generate_flowers() {
+    generate_flower_daisy(flowers_[0]);
+    generate_flower_tulip(flowers_[1]);
+    generate_flower_sunflower(flowers_[2]);
+    generate_flower_rose(flowers_[3]);
+}
+
+void TextureManager::generate_flower_daisy(Texture& t) {
+    int w = 32, h = 32;
+    t.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            float cx = x - 16.0f + 0.5f;
+            float cy = y - 16.0f + 0.5f;
+            float dist = std::sqrt(cx * cx + cy * cy);
+            float ang = std::atan2(cy, cx);
+            uint32_t c = 0x00000000;
+
+            // 8 rounded petals, white with a soft pink tip
+            float petal_r = 13.0f + 2.5f * std::cos(ang * 8.0f);
+            if (dist < petal_r && dist > 3.5f) {
+                float t2 = (dist - 3.5f) / (petal_r - 3.5f);
+                int shade = 255 - static_cast<int>(30.0f * t2);
+                c = 0xFF000000 | (shade << 16) | ((shade - 10) << 8) | (shade - 5 > 200 ? 220 : 235);
+            }
+            // Yellow center disc
+            if (dist <= 5.0f)
+                c = 0xFFFFCC33;
+            if (dist <= 5.0f && dist > 3.0f && (static_cast<int>(ang * 6.0f) & 1))
+                c = 0xFFE0A81F;
+
+            t.set_pixel(x, y, c);
+        }
+    }
+}
+
+void TextureManager::generate_flower_tulip(Texture& t) {
+    int w = 32, h = 32;
+    t.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint32_t c = 0x00000000;
+            float fx = (x - 16.0f + 0.5f) / 10.0f;
+            float fy = (y - 12.0f + 0.5f) / 13.0f;
+
+            // Cup-shaped bloom: wide at the base (fy ~ 0.6), tapering to a point on top
+            float profile = 1.0f - std::abs(fy);
+            float width_at_y = profile * (1.0f - 0.35f * std::max(0.0f, -fy));
+            if (fy > -1.0f && fy < 1.0f && std::abs(fx) < width_at_y) {
+                float shade = 0.75f + 0.25f * (1.0f - std::abs(fx) / (width_at_y + 0.001f));
+                int r = static_cast<int>(220 * shade);
+                int g = static_cast<int>(40 * shade);
+                int b = static_cast<int>(90 * shade);
+                c = 0xFF000000 | (r << 16) | (g << 8) | b;
+            }
+            // Stem
+            if (x >= 15 && x <= 16 && y >= 22 && y < 32)
+                c = 0xFF339933;
+            // Leaf
+            if (y >= 24 && y <= 28 && x >= 17 && x <= 22 && (x - 17) <= (28 - y))
+                c = 0xFF44AA44;
+
+            t.set_pixel(x, y, c);
+        }
+    }
+}
+
+void TextureManager::generate_flower_sunflower(Texture& t) {
+    int w = 32, h = 32;
+    t.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            float cx = x - 16.0f + 0.5f;
+            float cy = y - 16.0f + 0.5f;
+            float dist = std::sqrt(cx * cx + cy * cy);
+            float ang = std::atan2(cy, cx);
+            uint32_t c = 0x00000000;
+
+            // Long pointed petals
+            float petal_r = 15.5f + 1.5f * std::sin(ang * 12.0f);
+            if (dist < petal_r && dist > 7.0f) {
+                int shade = 210 + static_cast<int>(30.0f * std::cos(ang * 12.0f));
+                if (shade > 255) shade = 255;
+                c = 0xFF000000 | (shade << 16) | ((shade > 60 ? shade - 60 : 0) << 8) | 0x10;
+            }
+            // Brown seed disc with a speckled pattern
+            if (dist <= 7.5f) {
+                bool speckle = ((static_cast<int>(dist * 2.0f) + static_cast<int>(ang * 5.0f)) & 1) != 0;
+                c = speckle ? 0xFF5C3A1E : 0xFF7A4E2A;
+            }
+
+            t.set_pixel(x, y, c);
+        }
+    }
+}
+
+void TextureManager::generate_flower_rose(Texture& t) {
+    int w = 32, h = 32;
+    t.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            float cx = x - 16.0f + 0.5f;
+            float cy = y - 16.0f + 0.5f;
+            float dist = std::sqrt(cx * cx + cy * cy);
+            float ang = std::atan2(cy, cx);
+            uint32_t c = 0x00000000;
+
+            // Layered spiral petals — a few concentric rings, each slightly
+            // rotated, giving a rolled-bloom silhouette instead of flat petals.
+            for (int ring = 3; ring >= 0; --ring) {
+                float ring_r = 5.0f + ring * 3.0f;
+                float wobble = 1.5f * std::cos(ang * 5.0f + ring * 1.1f);
+                if (dist < ring_r + wobble) {
+                    int base = 150 + ring * 25;
+                    int r = std::min(255, base + 40);
+                    int g = std::max(0, base - 90);
+                    int b = std::max(0, base - 70);
+                    c = 0xFF000000 | (r << 16) | (g << 8) | b;
+                }
+            }
+
+            t.set_pixel(x, y, c);
         }
     }
 }
