@@ -23,6 +23,22 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
         return;
     }
 
+    // Reverse steps (from animal hit) — turn 180°, then let right-hand rule handle it
+    if (reverse_steps_ > 0) {
+        if (!reversing_) {
+            int back_dir = (walker_.direction() + 2) % 4;
+            reversing_ = true;
+            walker_.plan_turn(back_dir);
+            return;
+        }
+        // Turn started — fall through to right-hand rule below.
+        // reverse_steps_ is decremented in on_step_complete for each cell entered.
+    }
+
+    // Clear flag once counter is fully exhausted
+    if (reverse_steps_ == 0 && reversing_)
+        reversing_ = false;
+
     // Path-following mode — advance toward next waypoint
     if (path_idx_ >= 0 && path_idx_ < static_cast<int>(path_.size())) {
         int tx = path_[path_idx_].first;
@@ -44,7 +60,7 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
     }
 
     // After completing a turn, always move forward (don't re-evaluate)
-    if (walker_.turning()) {
+    if (walker_.turning() && !reversing_) {
         walker_.plan_move(walker_.direction());
         return;
     }
@@ -106,12 +122,17 @@ int AutoWalkStrategy::do_reverse() {
 bool AutoWalkStrategy::on_step_complete(const MazeGenerator& maze) {
     if (reverse_requested_) {
         reverse_requested_ = false;
+        reversing_ = false;
         int new_dir = do_reverse();
         if (cfg.debug_mode())
             printf("[AI] REVERSE via request at (%d,%d) now %s\n",
                    walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
         return false;
     }
+
+    // Count each step taken during reverse
+    if (reverse_steps_ > 0)
+        --reverse_steps_;
 
     plan_next_step(maze);
     return pause_ > 0;
@@ -141,12 +162,16 @@ void AutoWalkStrategy::clear_path() {
 
 void AutoWalkStrategy::request_reverse() {
     reverse_requested_ = true;
+    reversing_ = false;
 }
 
 void AutoWalkStrategy::reset(float pos_x, float pos_y, float dir_x, float dir_y) {
     rng_.seed(std::random_device{}());
     pause_ = 0;
+    reverse_pause_ = 0;
     reverse_requested_ = false;
+    reversing_ = false;
+    reverse_steps_ = 0;
     path_.clear();
     path_idx_ = -1;
     walker_.reset();
@@ -168,8 +193,21 @@ void AutoWalkStrategy::update(float dt, float& pos_x, float& pos_y,
     if (walker_.finished()) return;
     if (pause_ > 0) { --pause_; return; }
 
-    if (!walker_.advancing() && !walker_.consuming())
+    // Set up animal-hit callback once
+    if (!walker_.on_animal_) {
+        walker_.set_on_animal([this]() {
+            reverse_steps_ = 5 + std::uniform_int_distribution<int>(0, 1)(rng_);
+            reverse_pause_ = 30;  // hold position so flee animation is visible
+            reversing_ = false;
+        });
+    }
+
+    // Pause after animal hit so the flee animation plays before turning
+    if (reverse_pause_ > 0) {
+        --reverse_pause_;
+    } else if (!walker_.advancing() && !walker_.consuming()) {
         plan_next_step(maze);
+    }
 
     walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt,
                    [this, &maze]() { return on_step_complete(maze); });

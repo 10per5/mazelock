@@ -10,7 +10,7 @@ void InputManager::on_event(KeySym ks, bool press) {
     case XK_Down:     state_.down  = press; break;
     case XK_Left:     state_.left  = press; break;
     case XK_Right:    state_.right = press; break;
-    case XK_Shift_L:  case XK_Shift_R: state_.shift = press; break;
+    case XK_Tab: state_.tab = press; break;
     case XK_F12:
         if (press) state_.quit_requested = true;
         break;

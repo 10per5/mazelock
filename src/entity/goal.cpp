@@ -12,6 +12,9 @@ bool Goal::occupies(int x, int y) const {
     return x == x_ && y == y_;
 }
 
+float Goal::world_x() const { return x_ + 0.5f; }
+float Goal::world_y() const { return y_ + 0.5f; }
+
 uint32_t Goal::minimap_color() const {
     return color_;
 }

@@ -29,7 +29,10 @@ private:
     std::mt19937 rng_{std::random_device{}()};
 
     int pause_ = 0;
+    int reverse_pause_ = 0;
     bool reverse_requested_ = false;
+    bool reversing_ = false;
+    int reverse_steps_ = 0;
 
     // Path following state
     std::vector<std::pair<int,int>> path_;

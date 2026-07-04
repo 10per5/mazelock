@@ -9,8 +9,10 @@
 #include "ui/camera.hpp"
 #include "graphics/texture_manager.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 EntityThread::EntityThread() {}
 EntityThread::~EntityThread() {}
@@ -66,7 +68,7 @@ bool EntityThread::consume_animal_at(int x, int y, MazeGenerator& maze, float pl
     for (const auto& e : owned_) {
         auto* a = dynamic_cast<Animal*>(e.get());
         if (a && a->is_active() && a->occupies(x, y)) {
-            a->start_flee(player_x, player_y);
+            a->start_flee(maze, player_x, player_y);
             maze.clear_object(x, y);
             animal_flash_alpha_ = 0.5f;
             if (cfg.debug_mode())
@@ -95,14 +97,32 @@ bool EntityThread::consume_coin_at(int x, int y, MazeGenerator& maze) {
 void EntityThread::render_sprites(uint32_t* color_buffer, const float* depth_buffer,
                                    const Camera& camera,
                                    int render_w, int render_h, float wall_height) const {
+    struct Entry {
+        const Entity* e;
+        float dist_sq;
+    };
+
+    std::vector<Entry> sorted;
+    float cx = camera.pos_x();
+    float cy = camera.pos_y();
+
     for (const auto& e : owned_) {
-        if (auto* a = dynamic_cast<const Animal*>(e.get()))
+        float dx = e->world_x() - cx;
+        float dy = e->world_y() - cy;
+        sorted.push_back({e.get(), dx * dx + dy * dy});
+    }
+
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Entry& a, const Entry& b) { return a.dist_sq > b.dist_sq; });
+
+    for (const auto& entry : sorted) {
+        if (auto* a = dynamic_cast<const Animal*>(entry.e))
             a->render(color_buffer, depth_buffer, camera,
                       render_w, render_h, wall_height);
-        else if (auto* c = dynamic_cast<const Coin*>(e.get()))
+        else if (auto* c = dynamic_cast<const Coin*>(entry.e))
             c->render(color_buffer, depth_buffer, camera,
                       render_w, render_h, wall_height);
-        else if (auto* g = dynamic_cast<const Goal*>(e.get()))
+        else if (auto* g = dynamic_cast<const Goal*>(entry.e))
             g->render(color_buffer, depth_buffer, camera,
                       render_w, render_h, wall_height);
     }

@@ -214,7 +214,7 @@ void World::run() {
                 else if (keys.right)held = 4;
                 player_->set_held_dir(held);
 
-                player_->set_speed_mult(keys.shift ? 3.0f : 1.0f);
+                player_->set_speed_mult(keys.tab ? 3.0f : 1.0f);
             }
 
             prev_up    = keys.up;

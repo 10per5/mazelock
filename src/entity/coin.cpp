@@ -12,6 +12,9 @@ bool Coin::occupies(int x, int y) const {
     return active_ && x == x_ && y == y_;
 }
 
+float Coin::world_x() const { return x_ + 0.5f; }
+float Coin::world_y() const { return y_ + 0.5f; }
+
 uint32_t Coin::minimap_color() const {
     return active_ ? 0xFFFFD700 : 0x00000000;
 }

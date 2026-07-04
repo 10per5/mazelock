@@ -45,6 +45,10 @@ public:
     using ConsumeCheck = std::function<bool(int,int)>;
     void set_consume_check(ConsumeCheck fn) { consume_check_ = std::move(fn); }
 
+    // Called when an animal is detected in the target cell (before a move)
+    using OnAnimal = std::function<void()>;
+    void set_on_animal(OnAnimal fn) { on_animal_ = std::move(fn); }
+
     // God mode — walk through walls
     void set_god_mode(bool g) { god_mode_ = g; }
     bool god_mode() const { return god_mode_; }
@@ -59,6 +63,10 @@ public:
     void manual_turn_left();
     void manual_turn_right();
 
+    // "Attempt to walk in" bump animation (brief step-into-wall then back)
+    void start_bump(int dir);
+    bool bumping() const { return bump_frames_ > 0; }
+
     // Advance interpolation and call on_complete for each completed step.
     // plan_next is called after each step to let the strategy queue the next action.
     // Returns true if plan_next returns true (strategy signals to bail).
@@ -70,6 +78,7 @@ private:
     void execute_turn(int dir);
     void flush_pending();
     void snap_to_cell(float& pos_x, float& pos_y, float& dir_x, float& dir_y);
+    void apply_bump(float& pos_x, float& pos_y);
 
     int cell_x_ = 0, cell_y_ = 0;
     int direction_ = 1;
@@ -86,6 +95,9 @@ private:
     bool pending_turn_ = false;
     bool stepping_ = false;
 
+    int bump_frames_ = 0;
+    int bump_dir_ = 0;
+
     MazeGenerator* maze_ = nullptr;
     bool god_mode_ = false;
     bool freeze_when_idle_ = false;
@@ -93,6 +105,7 @@ private:
 
 public:
     ConsumeCheck consume_check_;
+    OnAnimal on_animal_;
     static constexpr int CONSUME_PAUSE_FRAMES = 30;
     static constexpr int dx[4] = { 0, 1, 0, -1 };
     static constexpr int dy[4] = {-1, 0, 1,  0 };

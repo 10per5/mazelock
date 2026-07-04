@@ -19,6 +19,8 @@ public:
 
     bool occupies(int x, int y) const override;
     uint32_t minimap_color() const override;
+    float world_x() const override;
+    float world_y() const override;
     bool is_active() const { return active_; }
 
 private:

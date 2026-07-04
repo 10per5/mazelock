@@ -117,7 +117,9 @@ void Player::set_god_mode(bool g) {
 }
 
 void Player::enable_autowalk() {
-    switch_to(autowalk_.get());
+    if (current_ != autowalk_.get())
+        switch_to(autowalk_.get());
+    current_->walker().set_freeze_when_idle(false);
     if (cfg.debug_mode())
         printf("[AUTOWALK] enabled\n");
 }

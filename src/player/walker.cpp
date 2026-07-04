@@ -48,9 +48,17 @@ void Walker::execute_turn(int dir) {
 void Walker::flush_pending() {
     if (pending_dir_ < 0) return;
     if (!pending_turn_ && !god_mode_ && maze_) {
-        // manual_forward already checked walls, but in auto mode the pending
-        // move might become invalid if the cell changed since it was queued.
         if (maze_->is_wall(cell_x_, cell_y_, pending_dir_)) {
+            start_bump(pending_dir_);
+            pending_dir_ = -1;
+            return;
+        }
+        // Animal in target cell — trigger flee and cancel the move
+        int nx = cell_x_ + dx[pending_dir_];
+        int ny = cell_y_ + dy[pending_dir_];
+        if (consume_check_ && consume_check_(nx, ny)) {
+            start_bump(pending_dir_);
+            if (on_animal_) on_animal_();
             pending_dir_ = -1;
             return;
         }
@@ -64,6 +72,22 @@ void Walker::flush_pending() {
 }
 
 bool Walker::plan_move(int dir) {
+    // Wall check for all callers
+    if (!god_mode_ && maze_ && maze_->is_wall(cell_x_, cell_y_, dir)) {
+        start_bump(dir);
+        return false;
+    }
+
+    // Animal in target cell — trigger flee and let the strategy handle reversing
+    if (!god_mode_ && maze_ && consume_check_) {
+        int nx = cell_x_ + dx[dir];
+        int ny = cell_y_ + dy[dir];
+        if (consume_check_(nx, ny)) {
+            start_bump(dir);
+            if (on_animal_) on_animal_();
+            return true;
+        }
+    }
     if (stepping_ && !finished_) {
         pending_dir_ = dir;
         pending_turn_ = false;
@@ -97,6 +121,7 @@ void Walker::teleport(int x, int y, int dir) {
     stepping_ = false;
     pending_dir_ = -1;
     consume_pause_ = 0;
+    bump_frames_ = 0;
     start_x_ = static_cast<float>(x) + 0.5f;
     start_y_ = static_cast<float>(y) + 0.5f;
     start_angle_ = static_cast<float>(dir) * PI_2 - PI_2;
@@ -120,6 +145,14 @@ void Walker::hold_position() {
     stepping_ = false;
 }
 
+static constexpr int BUMP_FRAMES = 10;
+
+void Walker::start_bump(int dir) {
+    if (bump_frames_ > 0) return;  // already playing
+    bump_dir_ = dir;
+    bump_frames_ = BUMP_FRAMES;
+}
+
 void Walker::reset() {
     cell_x_ = 0;
     cell_y_ = 0;
@@ -135,9 +168,19 @@ void Walker::reset() {
     stepping_ = false;
     pending_dir_ = -1;
     consume_pause_ = 0;
+    bump_frames_ = 0;
     start_x_ = end_x_ = 0.5f;
     start_y_ = end_y_ = 0.5f;
     start_angle_ = end_angle_ = 0.0f;
+}
+
+void Walker::apply_bump(float& pos_x, float& pos_y) {
+    if (bump_frames_ <= 0) return;
+    float bt = static_cast<float>(BUMP_FRAMES - bump_frames_) / BUMP_FRAMES;
+    float offset = 0.08f * std::sin(bt * PI);
+    pos_x += dx[bump_dir_] * offset;
+    pos_y += dy[bump_dir_] * offset;
+    --bump_frames_;
 }
 
 void Walker::snap_to_cell(float& pos_x, float& pos_y, float& dir_x, float& dir_y) {
@@ -150,19 +193,18 @@ void Walker::snap_to_cell(float& pos_x, float& pos_y, float& dir_x, float& dir_y
 
 void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
                     float speed, const StepCallback& plan_next) {
-    if (finished_) return;
+    if (finished_) {
+        apply_bump(pos_x, pos_y);
+        return;
+    }
 
     // Consume pause: hold position for a few frames so the player can see
-    // the animal flee before reversing.
+    // the animal flee animation before the strategy decides the next action.
     if (consume_pause_ > 0) {
-        if (--consume_pause_ == 0) {
-            int back_dir = (direction_ + 2) % 4;
-            plan_move(back_dir);
-            step_ = 0.0f;
-        } else {
+        if (--consume_pause_ != 0)
             hold_position();
-        }
         snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+        apply_bump(pos_x, pos_y);
         return;
     }
 
@@ -190,6 +232,7 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
                 printf("[WALKER] consumed at (%d,%d) — pause before reverse\n",
                        cell_x_, cell_y_);
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+            apply_bump(pos_x, pos_y);
             return;
         }
 
@@ -199,27 +242,47 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
             if (cfg.debug_mode())
                 printf("[WALKER] SOLVED in %d steps!\n", steps_);
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+            apply_bump(pos_x, pos_y);
             return;
         }
 
         // Strategy callback — skip if we already reversed from consume
         if (!consumed && plan_next && plan_next()) {
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
+            apply_bump(pos_x, pos_y);
             return;
         }
     }
 
-    float t = step_;
-    pos_x = start_x_ + (end_x_ - start_x_) * t;
-    pos_y = start_y_ + (end_y_ - start_y_) * t;
-    float angle = start_angle_ + (end_angle_ - start_angle_) * t;
-    dir_x = std::cos(angle);
-    dir_y = std::sin(angle);
+    {
+        float t = step_;
+        pos_x = start_x_ + (end_x_ - start_x_) * t;
+        pos_y = start_y_ + (end_y_ - start_y_) * t;
+        float angle = start_angle_ + (end_angle_ - start_angle_) * t;
+        dir_x = std::cos(angle);
+        dir_y = std::sin(angle);
+    }
+
+    apply_bump(pos_x, pos_y);
 }
 
 bool Walker::manual_forward() {
     int dir = turning_ ? next_dir_ : direction_;
-    if (!god_mode_ && maze_ && maze_->is_wall(cell_x_, cell_y_, dir)) return false;
+    if (!god_mode_ && maze_ && maze_->is_wall(cell_x_, cell_y_, dir)) {
+        start_bump(dir);
+        return false;
+    }
+
+    // Animal in the target cell — trigger flee and bump in place
+    if (!god_mode_ && maze_ && consume_check_) {
+        int nx = cell_x_ + dx[dir];
+        int ny = cell_y_ + dy[dir];
+        if (consume_check_(nx, ny)) {
+            start_bump(dir);
+            return true;
+        }
+    }
+
     if (!plan_move(dir))
         restart_step();
     if (cfg.debug_mode())
@@ -230,7 +293,21 @@ bool Walker::manual_forward() {
 
 bool Walker::manual_back() {
     int back_dir = turning_ ? (next_dir_ + 2) % 4 : (direction_ + 2) % 4;
-    if (!god_mode_ && maze_ && maze_->is_wall(cell_x_, cell_y_, back_dir)) return false;
+    if (!god_mode_ && maze_ && maze_->is_wall(cell_x_, cell_y_, back_dir)) {
+        start_bump(back_dir);
+        return false;
+    }
+
+    // Animal in the target cell — trigger flee and bump in place
+    if (!god_mode_ && maze_ && consume_check_) {
+        int nx = cell_x_ + dx[back_dir];
+        int ny = cell_y_ + dy[back_dir];
+        if (consume_check_(nx, ny)) {
+            start_bump(back_dir);
+            return true;
+        }
+    }
+
     if (!plan_move(back_dir))
         restart_step();
     if (cfg.debug_mode())

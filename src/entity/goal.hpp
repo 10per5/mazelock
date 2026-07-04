@@ -15,6 +15,8 @@ public:
 
     bool occupies(int x, int y) const override;
     uint32_t minimap_color() const override;
+    float world_x() const override;
+    float world_y() const override;
 
 private:
     int x_, y_;

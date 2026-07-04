@@ -9,7 +9,7 @@
 struct KeyState {
     bool f1_pressed = false;
     bool up = false, down = false, left = false, right = false;
-    bool shift = false;
+    bool tab = false;
     bool quit_requested = false;
     int f11_combo = 0;
     int f10_combo = 0;
