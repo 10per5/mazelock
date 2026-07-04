@@ -1,7 +1,9 @@
 #include "maze.hpp"
 
 #include <array>
-#include <cstdio>
+
+#include "cfg/singletons.hpp"
+
 #include <random>
 #include <string>
 
@@ -82,10 +84,9 @@ void MazeGenerator::print() const {
     // top border
     buf += '+';
     for (int x = 0; x < width_; ++x) buf += "---+";
-    std::printf("%s\n", buf.c_str());
+    g_logger->log("%s", buf.c_str());
 
     for (int y = 0; y < height_; ++y) {
-        // cell row
         buf.clear();
         buf += '|';
         for (int x = 0; x < width_; ++x) {
@@ -100,9 +101,8 @@ void MazeGenerator::print() const {
             buf += ' ';
             buf += c.walls[1] ? '|' : ' ';
         }
-        std::printf("%s\n", buf.c_str());
+        g_logger->log("%s", buf.c_str());
 
-        // wall row below
         buf.clear();
         buf += '+';
         for (int x = 0; x < width_; ++x) {
@@ -110,6 +110,6 @@ void MazeGenerator::print() const {
             buf += c.walls[2] ? "---" : "   ";
             buf += '+';
         }
-        std::printf("%s\n", buf.c_str());
+        g_logger->log("%s", buf.c_str());
     }
 }

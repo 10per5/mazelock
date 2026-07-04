@@ -3,6 +3,7 @@
 #include "strategy/goal_seeker_strategy.hpp"
 #include "pathfind.hpp"
 #include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "algorithm/maze.hpp"
 #include "entity/entity_thread.hpp"
 
@@ -74,8 +75,7 @@ void Player::update(float dt) {
     // When GoalSeeker path is exhausted, fall back to autowalk
     if (current_ == seeker_.get() && seeker_->path_completed()) {
         switch_to(autowalk_.get());
-        if (cfg.debug_mode())
-            printf("[PATH] completed, fallback to autowalk\n");
+        g_logger->debug("[PATH] completed, fallback to autowalk");
     }
 
     // Auto-repeat in manual mode
@@ -112,16 +112,14 @@ void Player::turn_right() {
 void Player::set_god_mode(bool g) {
     autowalk_->set_god_mode(g);
     seeker_->set_god_mode(g);
-    if (cfg.debug_mode())
-        printf("[GODMODE] %s\n", g ? "ON" : "OFF");
+    g_logger->debug("[GODMODE] %s", g ? "ON" : "OFF");
 }
 
 void Player::enable_autowalk() {
     if (current_ != autowalk_.get())
         switch_to(autowalk_.get());
     current_->walker().set_freeze_when_idle(false);
-    if (cfg.debug_mode())
-        printf("[AUTOWALK] enabled\n");
+    g_logger->debug("[AUTOWALK] enabled");
 }
 
 void Player::pathfind_to_finish() {
@@ -131,8 +129,7 @@ void Player::pathfind_to_finish() {
     if (!path.empty()) {
         switch_to(seeker_.get());
         seeker_->set_path(cx, cy, std::move(path));
-        if (cfg.debug_mode())
-            printf("[PATH] found path of %zu cells\n", seeker_->path()->size());
+        g_logger->debug("[PATH] found path of %zu cells", seeker_->path()->size());
     }
 }
 

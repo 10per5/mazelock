@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 class Config {
@@ -32,7 +33,7 @@ public:
 
 private:
     struct Impl;
-    Impl* self_ = nullptr;
+    std::unique_ptr<Impl> self_;
 };
 
 extern Config cfg;

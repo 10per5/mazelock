@@ -77,6 +77,12 @@ void Animal::start_flee(MazeGenerator& maze, float from_x, float from_y) {
     }
 }
 
+bool Animal::try_consume_animal(MazeGenerator& maze, float player_x, float player_y, int x, int y) {
+    if (!active_ || fleeing_ || x != x_ || y != y_) return false;
+    start_flee(maze, player_x, player_y);
+    return true;
+}
+
 void Animal::update(float dt) {
     if (fleeing_) {
         if (fallback_) {

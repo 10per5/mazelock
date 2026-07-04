@@ -5,12 +5,11 @@
 #include "goal.hpp"
 
 #include "algorithm/maze.hpp"
-#include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "ui/camera.hpp"
 #include "graphics/texture_manager.hpp"
 
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -50,10 +49,8 @@ void EntityThread::update(float dt, MazeGenerator& maze, int ai_cell_x, int ai_c
     camera_.set_position(pos_x, pos_y);
     camera_.set_direction(dir_x, dir_y, 0.66f);
 
-    for (const auto& e : owned_) {
-        if (auto* a = dynamic_cast<Animal*>(e.get()))
-            a->update(dt);
-    }
+    for (const auto& e : owned_)
+        e->update(dt);
 
     // Coin no longer has per-frame update — just collected on entry
 
@@ -72,13 +69,10 @@ void EntityThread::update(float dt, MazeGenerator& maze, int ai_cell_x, int ai_c
 
 bool EntityThread::consume_animal_at(int x, int y, MazeGenerator& maze, float player_x, float player_y) {
     for (const auto& e : owned_) {
-        auto* a = dynamic_cast<Animal*>(e.get());
-        if (a && a->is_active() && a->occupies(x, y)) {
-            a->start_flee(maze, player_x, player_y);
+        if (e->try_consume_animal(maze, player_x, player_y, x, y)) {
             maze.clear_object(x, y);
             animal_flash_alpha_ = 0.5f;
-            if (cfg.debug_mode())
-                printf("[ANIMAL] consumed at (%d,%d) — fleeing\n", x, y);
+            g_logger->debug("[ANIMAL] consumed at (%d,%d) — fleeing", x, y);
             return true;
         }
     }
@@ -87,14 +81,11 @@ bool EntityThread::consume_animal_at(int x, int y, MazeGenerator& maze, float pl
 
 bool EntityThread::consume_coin_at(int x, int y, MazeGenerator& maze) {
     for (const auto& e : owned_) {
-        auto* c = dynamic_cast<Coin*>(e.get());
-        if (c && c->is_active() && c->occupies(x, y)) {
-            c->remove();
+        if (e->try_consume_coin(maze, x, y)) {
             maze.clear_object(x, y);
             ++score_;
             coin_flash_alpha_ = 0.5f;
-            if (cfg.debug_mode())
-                printf("[COIN] collected at (%d,%d) score=%d\n", x, y, score_);
+            g_logger->debug("[COIN] collected at (%d,%d) score=%d", x, y, score_);
             return true;
         }
     }
@@ -122,17 +113,9 @@ void EntityThread::render_sprites(uint32_t* color_buffer, const float* depth_buf
     std::sort(sorted.begin(), sorted.end(),
               [](const Entry& a, const Entry& b) { return a.dist_sq > b.dist_sq; });
 
-    for (const auto& entry : sorted) {
-        if (auto* a = dynamic_cast<const Animal*>(entry.e))
-            a->render(color_buffer, depth_buffer, camera,
-                      render_w, render_h, wall_height);
-        else if (auto* c = dynamic_cast<const Coin*>(entry.e))
-            c->render(color_buffer, depth_buffer, camera,
-                      render_w, render_h, wall_height);
-        else if (auto* g = dynamic_cast<const Goal*>(entry.e))
-            g->render(color_buffer, depth_buffer, camera,
-                      render_w, render_h, wall_height);
-    }
+    for (const auto& entry : sorted)
+        entry.e->render(color_buffer, depth_buffer, camera,
+                        render_w, render_h, wall_height);
 }
 
 uint32_t EntityThread::screen_overlay_color() const {

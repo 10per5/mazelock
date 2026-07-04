@@ -1,10 +1,10 @@
 #include "game_state_machine.hpp"
 #include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "player/player.hpp"
 #include "algorithm/scheduler.hpp"
 
 #include <algorithm>
-#include <cstdio>
 
 bool GameStateMachine::consume_regenerate_flag() {
     bool r = regenerate_flag_;
@@ -42,8 +42,7 @@ void GameStateMachine::update(float dt, Player& player, Scheduler& scheduler) {
         if (state_ == State::RUNNING && player.finished()) {
             state_ = State::FINISHED;
             finished_display_ = 0.0f;
-            if (cfg.debug_mode())
-                printf("*** Maze solved! ***\n");
+            g_logger->debug("*** Maze solved! ***");
         }
         break;
 

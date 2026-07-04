@@ -19,8 +19,10 @@ uint32_t Coin::minimap_color() const {
     return active_ ? 0xFFFFD700 : 0x00000000;
 }
 
-void Coin::remove() {
+bool Coin::try_consume_coin(MazeGenerator& /*maze*/, int x, int y) {
+    if (!active_ || x != x_ || y != y_) return false;
     active_ = false;
+    return true;
 }
 
 void Coin::render(uint32_t* color_buffer, const float* depth_buffer,

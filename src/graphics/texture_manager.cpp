@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cmath>
 
+#include "cfg/singletons.hpp"
+
 bool TextureManager::init(const std::string& tex_dir) {
 #ifdef USEPNG
     return load_from_png(tex_dir);
@@ -25,7 +27,7 @@ bool TextureManager::load_from_png(const std::string& dir) {
     auto load = [&](Texture& t, const char* name) {
         std::string path = dir + "/" + name;
         if (!t.load_png(path)) {
-            std::fprintf(stderr, "Failed to load %s\n", path.c_str());
+            g_logger->log("Failed to load %s", path.c_str());
             ok = false;
         }
     };

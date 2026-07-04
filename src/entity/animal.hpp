@@ -10,23 +10,22 @@ class Camera;
 class MazeGenerator;
 class Texture;
 
-class Animal : public Entity {
+class Animal final : public Entity {
 public:
     Animal(int x, int y, const Texture* sprite);
 
     void start_flee(MazeGenerator& maze, float from_x, float from_y);
-    void update(float dt);
 
+    // Entity overrides
+    void update(float dt) override;
+    bool try_consume_animal(MazeGenerator& maze, float player_x, float player_y, int x, int y) override;
     void render(uint32_t* color_buffer, const float* depth_buffer,
                 const Camera& camera,
-                int render_w, int render_h, float wall_height) const;
-
+                int render_w, int render_h, float wall_height) const override;
     bool occupies(int x, int y) const override;
     uint32_t minimap_color() const override;
     float world_x() const override;
     float world_y() const override;
-    bool is_active() const { return active_; }
-    bool is_fleeing() const { return fleeing_; }
 
 private:
     int x_, y_;

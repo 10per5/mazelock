@@ -1,5 +1,6 @@
 #include "world.hpp"
 #include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "terminal.hpp"
 
 #include "player/player.hpp"
@@ -16,60 +17,50 @@
 #include "effects/pipe_effect.hpp"
 
 #include <chrono>
-#include <cstdio>
+
 #include <unistd.h>
 
+World::~World() = default;
+
 World::World(Config& cfg, int argc, char* argv[])
-    : cfg_(cfg) {
+    : cfg_(cfg)
+    , fb_(std::make_unique<Framebuffer>())
+    , texman_(std::make_unique<TextureManager>())
+    , maze_(std::make_unique<MazeGenerator>(cfg.maze_width(), cfg.maze_height()))
+    , scheduler_(std::make_unique<Scheduler>())
+    , entities_(std::make_unique<EntityThread>())
+    , raycaster_(std::make_unique<Raycaster>())
+    , pw_overlay_(std::make_unique<PasswordOverlay>())
+    , player_(std::make_unique<Player>())
+    , drawer_(std::make_unique<Drawer>()) {
     (void)argc; (void)argv;
-    fb_ = new Framebuffer;
+    g_logger = cfg.debug_mode()
+        ? static_cast<Logger*>(new DebugLogger)
+        : static_cast<Logger*>(new NullLogger);
     fb_->blackout_other_windows(true);
     fx_mgr_.init(*fb_);
 
-    texman_ = new TextureManager;
     texman_->init("textures");
-
-    maze_ = new MazeGenerator(cfg.maze_width(), cfg.maze_height());
-    scheduler_ = new Scheduler;
-    entities_ = new EntityThread;
-    raycaster_ = new Raycaster;
-    pw_overlay_ = new PasswordOverlay;
-
     raycaster_->set_textures(*texman_);
     entities_->set_sprites(*texman_);
     entities_->init(*maze_);
 
     if (cfg.debug_mode()) {
-        printf("Maze: %dx%d  Start=(0,0)  Finish=(%d,%d)\n",
+        g_logger->debug("Maze: %dx%d  Start=(0,0)  Finish=(%d,%d)",
                maze_->width(), maze_->height(),
                maze_->width() - 1, maze_->height() - 1);
         maze_->print();
     }
 
-    player_ = new Player;
     player_->init(*maze_, *entities_);
-    drawer_ = new Drawer;
 
-    renderer_ = new RenderManager(*fb_, *raycaster_, *entities_,
-                                   *pw_overlay_, *drawer_, *maze_, *player_);
-
-    hearts_ = new HeartDisplay(*pw_overlay_, *texman_);
+    renderer_ = std::make_unique<RenderManager>(*fb_, *raycaster_, *entities_,
+                                                  *pw_overlay_, *drawer_,
+                                                  *maze_, *player_);
+    hearts_ = std::make_unique<HeartDisplay>(*pw_overlay_, *texman_);
 }
 
-World::~World() {
-    fx_mgr_.shutdown(*fb_);
-    delete hearts_;
-    delete renderer_;
-    delete drawer_;
-    delete player_;
-    delete pw_overlay_;
-    delete raycaster_;
-    delete entities_;
-    delete scheduler_;
-    delete maze_;
-    delete texman_;
-    delete fb_;
-}
+
 
 void World::run() {
     TerminalGuard tguard;
@@ -119,8 +110,7 @@ void World::run() {
                 god_mode_ = !god_mode_;
                 player_->set_god_mode(god_mode_);
                 input_mgr_.reset_f10_combo();
-                if (cfg.debug_mode())
-                    printf("[WORLD] god_mode=%d\n", god_mode_);
+                g_logger->debug("[WORLD] god_mode=%d", god_mode_);
             }
 
             if (keys.f11_combo >= 3) {
@@ -145,8 +135,7 @@ void World::run() {
                 f1_edge = true;
                 player_->reset();
                 entities_->init(*maze_);
-                if (cfg.debug_mode())
-                    printf("[WORLD] F1 — reset to start\n");
+                g_logger->debug("[WORLD] F1 — reset to start");
             } else if (!keys.f1_pressed) {
                 f1_edge = false;
             }

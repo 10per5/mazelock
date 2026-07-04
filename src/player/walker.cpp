@@ -1,10 +1,9 @@
 #include "walker.hpp"
 #include "../cfg/constants.hpp"
-#include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "algorithm/maze.hpp"
 
 #include <cmath>
-#include <cstdio>
 
 static const char* dir_name(int d) {
     static const char* names[] = {"N", "E", "S", "W"};
@@ -229,8 +228,7 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
         if (consumed) {
             consume_pause_ = CONSUME_PAUSE_FRAMES;
             if (on_animal_) on_animal_();
-            if (cfg.debug_mode())
-                printf("[WALKER] consumed at (%d,%d) — pause before reverse\n",
+            g_logger->debug("[WALKER] consumed at (%d,%d) — pause before reverse",
                        cell_x_, cell_y_);
             start_bump(direction_);
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
@@ -241,8 +239,7 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
         // Finish detection
         if (maze_ && maze_->is_finish(cell_x_, cell_y_)) {
             finished_ = true;
-            if (cfg.debug_mode())
-                printf("[WALKER] SOLVED in %d steps!\n", steps_);
+            g_logger->debug("[WALKER] SOLVED in %d steps!", steps_);
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
             apply_bump(pos_x, pos_y);
             return;
@@ -287,8 +284,7 @@ bool Walker::manual_forward() {
 
     if (!plan_move(dir))
         restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] forward (%d,%d) %s\n",
+    g_logger->debug("[MANUAL] forward (%d,%d) %s",
                cell_x_, cell_y_, dir_name(dir));
     return true;
 }
@@ -312,8 +308,7 @@ bool Walker::manual_back() {
 
     if (!plan_move(back_dir))
         restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] back (%d,%d) now %s\n",
+    g_logger->debug("[MANUAL] back (%d,%d) now %s",
                cell_x_, cell_y_, dir_name(back_dir));
     return true;
 }
@@ -322,8 +317,7 @@ void Walker::manual_turn_left() {
     int new_dir = (direction_ + 3) % 4;
     if (!plan_turn(new_dir))
         restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] turn left (%d,%d) now %s\n",
+    g_logger->debug("[MANUAL] turn left (%d,%d) now %s",
                cell_x_, cell_y_, dir_name(new_dir));
 }
 
@@ -331,7 +325,6 @@ void Walker::manual_turn_right() {
     int new_dir = (direction_ + 1) % 4;
     if (!plan_turn(new_dir))
         restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] turn right (%d,%d) now %s\n",
+    g_logger->debug("[MANUAL] turn right (%d,%d) now %s",
                cell_x_, cell_y_, dir_name(new_dir));
 }

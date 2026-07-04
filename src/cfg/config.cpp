@@ -1,6 +1,6 @@
 #include "config.hpp"
 
-#include <cstdlib>
+#include <charconv>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -21,7 +21,7 @@ static std::string trim(const std::string& s) {
 }
 
 Config::Config(const char* file_path, int argc, char* argv[])
-    : self_(new Impl) {
+    : self_(std::make_unique<Impl>()) {
     std::ifstream f(file_path);
     if (f.is_open()) {
         std::string line;
@@ -44,17 +44,10 @@ Config::Config(const char* file_path, int argc, char* argv[])
     }
 }
 
-Config::~Config() { delete self_; }
+Config::~Config() = default;
 
-Config::Config(Config&& other) noexcept : self_(other.self_) { other.self_ = nullptr; }
-Config& Config::operator=(Config&& other) noexcept {
-    if (this != &other) {
-        delete self_;
-        self_ = other.self_;
-        other.self_ = nullptr;
-    }
-    return *this;
-}
+Config::Config(Config&& other) noexcept = default;
+Config& Config::operator=(Config&& other) noexcept = default;
 
 int Config::get_int(const std::string& key, int def) const {
     if (!self_) return def;
@@ -62,7 +55,8 @@ int Config::get_int(const std::string& key, int def) const {
     if (ic != self_->int_cache.end()) return ic->second;
     auto it = self_->map.find(key);
     if (it != self_->map.end()) {
-        int v = std::atoi(it->second.c_str());
+        int v = 0;
+        std::from_chars(it->second.data(), it->second.data() + it->second.size(), v);
         self_->int_cache[key] = v;
         return v;
     }
@@ -72,12 +66,16 @@ int Config::get_int(const std::string& key, int def) const {
 float Config::get_float(const std::string& key, float def) const {
     if (!self_) return def;
     auto it = self_->map.find(key);
-    if (it != self_->map.end()) return std::atof(it->second.c_str());
+    if (it != self_->map.end()) {
+        float v = 0.0f;
+        std::from_chars(it->second.data(), it->second.data() + it->second.size(), v);
+        return v;
+    }
     return def;
 }
 
 void Config::set_int(const std::string& key, int value) {
-    if (!self_) self_ = new Impl;
+    if (!self_) self_ = std::make_unique<Impl>();
     self_->map[key] = std::to_string(value);
     self_->int_cache[key] = value;
 }

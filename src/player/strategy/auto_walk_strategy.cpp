@@ -1,9 +1,8 @@
 #include "auto_walk_strategy.hpp"
-#include "cfg/config.hpp"
+#include "cfg/singletons.hpp"
 #include "algorithm/maze.hpp"
 
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 
 static const char* dir_name(int d) {
@@ -43,8 +42,7 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
             } else {
                 reverse_target_ = 4;    // full circle back to original
             }
-            if (cfg.debug_mode())
-                printf("[AI] reverse: target=%d (cur=%s walls 90:%d 180:%d 270:%d)\n",
+            g_logger->debug("[AI] reverse: target=%d (cur=%s walls 90:%d 180:%d 270:%d)",
                        reverse_target_, dir_name(cur), w90, w180, w270);
         }
 
@@ -56,8 +54,7 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
 
         // All required turns done — resume normal navigation
         if (reverse_phase_ >= reverse_target_) {
-            if (cfg.debug_mode())
-                printf("[AI] reverse: done (%s)\n",
+            g_logger->debug("[AI] reverse: done (%s)",
                        dir_name(walker_.direction()));
             reversing_ = false;
             reverse_phase_ = 0;
@@ -134,8 +131,7 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
         }
     }
 
-    if (cfg.debug_mode())
-        printf("[AI] (%d,%d) %s->%s  R:%s F:%s L:%s%s\n",
+    g_logger->debug("[AI] (%d,%d) %s->%s  R:%s F:%s L:%s%s",
                walker_.cell_x(), walker_.cell_y(),
                dir_name(dir), dir_name(next_dir),
                maze.is_wall(walker_.cell_x(), walker_.cell_y(), right_dir) ? "W" : ".",

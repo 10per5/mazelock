@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "cfg/singletons.hpp"
+
 #ifdef USEPNG
 #include <png.h>
 #endif
@@ -22,14 +24,14 @@ bool Texture::load_png(const std::string& path) {
 #ifdef USEPNG
     FILE* fp = std::fopen(path.c_str(), "rb");
     if (!fp) {
-        std::fprintf(stderr, "Texture: cannot open %s\n", path.c_str());
+        g_logger->log("Texture: cannot open %s", path.c_str());
         return false;
     }
 
     png_byte sig[8];
     std::fread(sig, 1, 8, fp);
     if (png_sig_cmp(sig, 0, 8) != 0) {
-        std::fprintf(stderr, "Texture: %s is not a PNG\n", path.c_str());
+        g_logger->log("Texture: %s is not a PNG", path.c_str());
         std::fclose(fp);
         return false;
     }
@@ -99,7 +101,7 @@ bool Texture::load_png(const std::string& path) {
     return true;
 #else
     (void)path;
-    std::fprintf(stderr, "Texture: PNG support not compiled in\n");
+    g_logger->log("Texture: PNG support not compiled in");
     return false;
 #endif
 }

@@ -4,6 +4,8 @@
 #include "ui/input_manager.hpp"
 #include "effects/effect_manager.hpp"
 
+#include <memory>
+
 class Config;
 class Framebuffer;
 class TextureManager;
@@ -28,17 +30,18 @@ private:
     InputManager input_mgr_;
     GameStateMachine state_machine_;
     EffectManager fx_mgr_;
-    RenderManager* renderer_ = nullptr;
-    HeartDisplay* hearts_ = nullptr;
 
-    Framebuffer* fb_ = nullptr;
-    TextureManager* texman_ = nullptr;
-    MazeGenerator* maze_ = nullptr;
-    Scheduler* scheduler_ = nullptr;
-    EntityThread* entities_ = nullptr;
-    Raycaster* raycaster_ = nullptr;
-    PasswordOverlay* pw_overlay_ = nullptr;
-    Player* player_ = nullptr;
-    Drawer* drawer_ = nullptr;
+    // Owned resources (declared in dependency order for safe destruction)
+    std::unique_ptr<Framebuffer> fb_;
+    std::unique_ptr<TextureManager> texman_;
+    std::unique_ptr<MazeGenerator> maze_;
+    std::unique_ptr<Scheduler> scheduler_;
+    std::unique_ptr<EntityThread> entities_;
+    std::unique_ptr<Raycaster> raycaster_;
+    std::unique_ptr<PasswordOverlay> pw_overlay_;
+    std::unique_ptr<Player> player_;
+    std::unique_ptr<Drawer> drawer_;
+    std::unique_ptr<RenderManager> renderer_;
+    std::unique_ptr<HeartDisplay> hearts_;
     bool god_mode_ = false;
 };
