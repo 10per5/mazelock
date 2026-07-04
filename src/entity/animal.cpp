@@ -19,7 +19,7 @@ float Animal::world_y() const { return fleeing_ ? flee_pos_y_ : (y_ + 0.5f); }
 
 uint32_t Animal::minimap_color() const {
     if (fleeing_) return 0x00000000;
-    return active_ ? 0xFF44FF44 : 0x00000000;
+    return active_ ? 0xFFFF4444 : 0x00000000;  // red on minimap
 }
 
 void Animal::start_flee(MazeGenerator& maze, float from_x, float from_y) {

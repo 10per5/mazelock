@@ -48,6 +48,7 @@ private:
     const Texture* start_sprite_ = nullptr;
     const Texture* goal_sprite_ = nullptr;
     float animal_flash_alpha_ = 0.0f;
+    float coin_flash_alpha_ = 0.0f;
     int score_ = 0;
     Camera camera_;
 };

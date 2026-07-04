@@ -19,20 +19,21 @@ public:
     void set_path(int from_x, int from_y, std::vector<std::pair<int,int>> path);
     bool has_path() const { return path_idx_ >= 0; }
     void clear_path();
-    void request_reverse();
 
 private:
     void plan_next_step(const MazeGenerator& maze);
-    int do_reverse();
     bool on_step_complete(const MazeGenerator& maze);
 
     std::mt19937 rng_{std::random_device{}()};
 
     int pause_ = 0;
     int reverse_pause_ = 0;
-    bool reverse_requested_ = false;
     bool reversing_ = false;
-    int reverse_steps_ = 0;
+    int reverse_phase_ = 0;   // number of 90° turns completed so far
+    int reverse_target_ = 2;  // how many 90° turns to attempt
+    int reverse_steps_ = 0;   // remaining forward steps after reverse turn
+    int reverse_finish_dir_ = -1;  // direction to face when walk is done
+    bool on_animal_setup_ = false;
 
     // Path following state
     std::vector<std::pair<int,int>> path_;

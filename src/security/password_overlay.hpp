@@ -11,6 +11,10 @@
 #define PASSWORD "world90s"
 #endif
 
+#ifndef PASSWORD_MAX
+#define PASSWORD_MAX 64
+#endif
+
 class PasswordOverlay {
 public:
     enum class State {

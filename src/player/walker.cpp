@@ -224,13 +224,15 @@ void Walker::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
         flush_pending();
         ++steps_;
 
-        // Consume check — pause to let the flee animation play before reversing.
+        // Consume check — pause so the player sees the bump + flee before reversing.
         bool consumed = consume_check_ && consume_check_(cell_x_, cell_y_);
         if (consumed) {
             consume_pause_ = CONSUME_PAUSE_FRAMES;
+            if (on_animal_) on_animal_();
             if (cfg.debug_mode())
                 printf("[WALKER] consumed at (%d,%d) — pause before reverse\n",
                        cell_x_, cell_y_);
+            start_bump(direction_);
             snap_to_cell(pos_x, pos_y, dir_x, dir_y);
             apply_bump(pos_x, pos_y);
             return;

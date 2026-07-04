@@ -23,21 +23,53 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
         return;
     }
 
-    // Reverse steps (from animal hit) — turn 180°, then let right-hand rule handle it
-    if (reverse_steps_ > 0) {
-        if (!reversing_) {
-            int back_dir = (walker_.direction() + 2) % 4;
-            reversing_ = true;
-            walker_.plan_turn(back_dir);
+    // Reverse sequence (from animal hit) — choose the shortest viable
+    // turn that leaves the walker in an open direction, preferring
+    // 90° > 180° > 270° > 360° (full circle back to original).
+    if (reversing_) {
+        if (reverse_phase_ == 0) {
+            // Peek ahead from current cell to decide target
+            int cur = walker_.direction();
+            bool w90  = maze.is_wall(walker_.cell_x(), walker_.cell_y(), (cur + 3) % 4);
+            bool w180 = maze.is_wall(walker_.cell_x(), walker_.cell_y(), (cur + 2) % 4);
+            bool w270 = maze.is_wall(walker_.cell_x(), walker_.cell_y(), (cur + 1) % 4);
+
+            if (!w180) {
+                reverse_target_ = 2;    // 180° is open — normal reverse
+            } else if (!w90) {
+                reverse_target_ = 1;    // 180° blocked — try 90° instead
+            } else if (!w270) {
+                reverse_target_ = 3;    // 90° & 180° blocked — try 270°
+            } else {
+                reverse_target_ = 4;    // full circle back to original
+            }
+            if (cfg.debug_mode())
+                printf("[AI] reverse: target=%d (cur=%s walls 90:%d 180:%d 270:%d)\n",
+                       reverse_target_, dir_name(cur), w90, w180, w270);
+        }
+
+        // Wait for any in-progress step to finish.
+        // (turning_ stays true after a turn completes for the "force forward
+        //  after turn" feature — we must not wait for it.)
+        if (walker_.advancing())
+            return;
+
+        // All required turns done — resume normal navigation
+        if (reverse_phase_ >= reverse_target_) {
+            if (cfg.debug_mode())
+                printf("[AI] reverse: done (%s)\n",
+                       dir_name(walker_.direction()));
+            reversing_ = false;
+            reverse_phase_ = 0;
+            reverse_target_ = 2;
             return;
         }
-        // Turn started — fall through to right-hand rule below.
-        // reverse_steps_ is decremented in on_step_complete for each cell entered.
-    }
 
-    // Clear flag once counter is fully exhausted
-    if (reverse_steps_ == 0 && reversing_)
-        reversing_ = false;
+        // One more 90° left turn
+        ++reverse_phase_;
+        walker_.plan_turn((walker_.direction() + 3) % 4);
+        return;
+    }
 
     // Path-following mode — advance toward next waypoint
     if (path_idx_ >= 0 && path_idx_ < static_cast<int>(path_.size())) {
@@ -63,6 +95,16 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
     if (walker_.turning() && !reversing_) {
         walker_.plan_move(walker_.direction());
         return;
+    }
+
+    // After the walk-away phase (reverse_steps_ counted down by
+    // on_step_complete), turn back to the original direction.
+    if (reverse_finish_dir_ >= 0 && reverse_steps_ == 0) {
+        if (walker_.direction() != reverse_finish_dir_) {
+            walker_.plan_turn(reverse_finish_dir_);
+            return;
+        }
+        reverse_finish_dir_ = -1;
     }
 
     // Right-hand rule + random exploration
@@ -108,30 +150,18 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
     }
 }
 
-int AutoWalkStrategy::do_reverse() {
-    int back_dir = (walker_.direction() + 2) % 4;
-    walker_.plan_move(back_dir);
-    return back_dir;
-}
-
 // -----------------------------------------------------------------------
 // Step-completion callback — called by the walker every time a cell is entered
 // Returns true to request an early bail (pause or finish)
 // -----------------------------------------------------------------------
 
 bool AutoWalkStrategy::on_step_complete(const MazeGenerator& maze) {
-    if (reverse_requested_) {
-        reverse_requested_ = false;
-        reversing_ = false;
-        int new_dir = do_reverse();
-        if (cfg.debug_mode())
-            printf("[AI] REVERSE via request at (%d,%d) now %s\n",
-                   walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
+    // Don't plan new moves during the post-animal pause
+    if (reverse_pause_ > 0)
         return false;
-    }
 
-    // Count each step taken during reverse
-    if (reverse_steps_ > 0)
+    // Count forward steps for the walk-away phase (skip reverse turn steps)
+    if (!reversing_ && reverse_steps_ > 0)
         --reverse_steps_;
 
     plan_next_step(maze);
@@ -160,18 +190,15 @@ void AutoWalkStrategy::clear_path() {
     path_idx_ = -1;
 }
 
-void AutoWalkStrategy::request_reverse() {
-    reverse_requested_ = true;
-    reversing_ = false;
-}
-
 void AutoWalkStrategy::reset(float pos_x, float pos_y, float dir_x, float dir_y) {
     rng_.seed(std::random_device{}());
     pause_ = 0;
     reverse_pause_ = 0;
-    reverse_requested_ = false;
     reversing_ = false;
+    reverse_phase_ = 0;
+    reverse_target_ = 2;
     reverse_steps_ = 0;
+    reverse_finish_dir_ = -1;
     path_.clear();
     path_idx_ = -1;
     walker_.reset();
@@ -194,17 +221,26 @@ void AutoWalkStrategy::update(float dt, float& pos_x, float& pos_y,
     if (pause_ > 0) { --pause_; return; }
 
     // Set up animal-hit callback once
-    if (!walker_.on_animal_) {
+    if (!on_animal_setup_) {
         walker_.set_on_animal([this]() {
+            if (reversing_) return;     // already reversing — ignore repeat hits
+            reverse_pause_ = 45;
+            reversing_ = true;
+            reverse_phase_ = 0;
+            reverse_finish_dir_ = walker_.direction();
             reverse_steps_ = 5 + std::uniform_int_distribution<int>(0, 1)(rng_);
-            reverse_pause_ = 30;  // hold position so flee animation is visible
-            reversing_ = false;
         });
+        on_animal_setup_ = true;
     }
 
-    // Pause after animal hit so the flee animation plays before turning
+    // Hold position so the flee animation is visible before turning.
+    // Counts AFTER consume_pause_ expires (sequential, not overlapping).
     if (reverse_pause_ > 0) {
-        --reverse_pause_;
+        if (!walker_.consuming()) {
+            --reverse_pause_;
+            if (!walker_.advancing())
+                walker_.hold_position();
+        }
     } else if (!walker_.advancing() && !walker_.consuming()) {
         plan_next_step(maze);
     }

@@ -36,7 +36,6 @@ void PasswordOverlay::deactivate() {
     flash_remaining_ = 0.0f;
     wait_remaining_ = 0.0f;
     exit_requested_ = false;
-    bad_attempts_ = 0;
     pending_key_ = static_cast<KeySym>(0);
 }
 
@@ -93,7 +92,7 @@ bool PasswordOverlay::handle_key(KeySym ks) {
     }
 
     if (ks >= XK_space && ks <= XK_asciitilde) {
-        if (buffer_.size() >= std::strlen(PASSWORD))
+        if (buffer_.size() >= PASSWORD_MAX)
             return true;
         char c = static_cast<char>(ks & 0x7F);
         buffer_.push_back(c);

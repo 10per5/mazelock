@@ -102,10 +102,10 @@ private:
     bool god_mode_ = false;
     bool freeze_when_idle_ = false;
     int consume_pause_ = 0;
-
-public:
     ConsumeCheck consume_check_;
     OnAnimal on_animal_;
+
+public:
     static constexpr int CONSUME_PAUSE_FRAMES = 30;
     static constexpr int dx[4] = { 0, 1, 0, -1 };
     static constexpr int dy[4] = {-1, 0, 1,  0 };

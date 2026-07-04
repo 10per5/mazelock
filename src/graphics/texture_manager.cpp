@@ -104,7 +104,10 @@ void TextureManager::generate_coin() {
             }
             if (std::abs(x - 13) < 2 && std::abs(y - 13) < 2) c = 0xFF000000;
             if (std::abs(x - 19) < 2 && std::abs(y - 13) < 2) c = 0xFF000000;
-            if (std::abs(x - 16) < 3 && y == 19) c = 0xFF000000;
+            // Smile :)
+            if ((x == 13 || x == 19) && y == 19) c = 0xFF000000;
+            if ((x == 14 || x == 18) && y == 20) c = 0xFF000000;
+            if (x >= 15 && x <= 17 && y == 21) c = 0xFF000000;
             coin_.set_pixel(x, y, c);
         }
     }

@@ -36,7 +36,7 @@ void EntityThread::init(MazeGenerator& maze) {
             else if (obj == OBJECT_START)
                 owned_.push_back(std::make_unique<Goal>(x, y, 0xFF00FFFF, start_sprite_));
             else if (obj == OBJECT_FINISH)
-                owned_.push_back(std::make_unique<Goal>(x, y, 0xFFFF0000, goal_sprite_));
+                owned_.push_back(std::make_unique<Goal>(x, y, 0xFF00FF00, goal_sprite_));
             else if (obj == OBJECT_ANIMAL)
                 owned_.push_back(std::make_unique<Animal>(x, y, rat_sprite_));
         }
@@ -62,6 +62,12 @@ void EntityThread::update(float dt, MazeGenerator& maze, int ai_cell_x, int ai_c
         if (animal_flash_alpha_ < 0.0f)
             animal_flash_alpha_ = 0.0f;
     }
+
+    if (coin_flash_alpha_ > 0.0f) {
+        coin_flash_alpha_ -= dt * 3.0f;
+        if (coin_flash_alpha_ < 0.0f)
+            coin_flash_alpha_ = 0.0f;
+    }
 }
 
 bool EntityThread::consume_animal_at(int x, int y, MazeGenerator& maze, float player_x, float player_y) {
@@ -86,6 +92,7 @@ bool EntityThread::consume_coin_at(int x, int y, MazeGenerator& maze) {
             c->remove();
             maze.clear_object(x, y);
             ++score_;
+            coin_flash_alpha_ = 0.5f;
             if (cfg.debug_mode())
                 printf("[COIN] collected at (%d,%d) score=%d\n", x, y, score_);
             return true;
@@ -129,10 +136,12 @@ void EntityThread::render_sprites(uint32_t* color_buffer, const float* depth_buf
 }
 
 uint32_t EntityThread::screen_overlay_color() const {
+    if (coin_flash_alpha_ > 0.0f) return 0x00FFDD00;  // yellow for coin collect
     return 0x008800CC;  // purple for animal consume
 }
 
 float EntityThread::screen_overlay_alpha() const {
+    if (coin_flash_alpha_ > 0.0f) return coin_flash_alpha_;
     return animal_flash_alpha_;
 }
 
@@ -140,5 +149,6 @@ void EntityThread::reset() {
     owned_.clear();
     entities_.clear();
     animal_flash_alpha_ = 0.0f;
+    coin_flash_alpha_ = 0.0f;
     score_ = 0;
 }
