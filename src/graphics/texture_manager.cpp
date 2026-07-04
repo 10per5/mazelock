@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 
 bool TextureManager::init(const std::string& tex_dir) {
 #ifdef USEPNG

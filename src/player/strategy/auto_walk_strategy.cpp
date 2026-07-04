@@ -1,5 +1,5 @@
 #include "auto_walk_strategy.hpp"
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 #include "algorithm/maze.hpp"
 
 #include <algorithm>

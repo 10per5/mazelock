@@ -1,6 +1,6 @@
 #include "world.hpp"
 #include "cfg/config.hpp"
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 #include "terminal.hpp"
 
 #include "player/player.hpp"

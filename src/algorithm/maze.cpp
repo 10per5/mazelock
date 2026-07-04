@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 
 #include <random>
 #include <string>

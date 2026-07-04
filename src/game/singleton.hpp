@@ -1,5 +1,5 @@
 #pragma once
 
-#include "logger.hpp"
+#include "cfg/logger.hpp"
 
 extern Logger* g_logger;

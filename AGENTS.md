@@ -37,7 +37,7 @@
 - `Logger` abstract base (`cfg/logger.hpp`) — two subclasses inline:
   - **NullLogger** — `is_active()` returns false, no formatting, zero runtime cost
   - **DebugLogger** — `is_active()` returns true, formats + prints
-- `Logger* g_logger` declared in `cfg/singletons.hpp`, defined as `nullptr` in `singletons.cpp`; set in `World::World()` based on `--debug` flag
+- `Logger* g_logger` declared in `cfg/singleton.hpp`, defined as `nullptr` in `singletons.cpp`; set in `World::World()` based on `--debug` flag
 - All debug output uses `g_logger->debug(fmt, args...)`; no raw `printf`/`std::println` + `if` guards
 
 # Key Conventions

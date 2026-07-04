@@ -1,6 +1,6 @@
 #include "walker.hpp"
 #include "../cfg/constants.hpp"
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 #include "algorithm/maze.hpp"
 
 #include <cmath>

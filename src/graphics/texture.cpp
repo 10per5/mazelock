@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 
 #ifdef USEPNG
 #include <png.h>

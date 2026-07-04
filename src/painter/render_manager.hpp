@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game_state_machine.hpp"
+#include "game/game_state_machine.hpp"
 
 class Framebuffer;
 class Raycaster;

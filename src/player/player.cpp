@@ -3,7 +3,7 @@
 #include "strategy/goal_seeker_strategy.hpp"
 #include "pathfind.hpp"
 #include "cfg/config.hpp"
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 #include "algorithm/maze.hpp"
 #include "entity/entity_thread.hpp"
 

@@ -5,7 +5,7 @@
 #include "goal.hpp"
 
 #include "algorithm/maze.hpp"
-#include "cfg/singletons.hpp"
+#include "game/singleton.hpp"
 #include "ui/camera.hpp"
 #include "graphics/texture_manager.hpp"
 
