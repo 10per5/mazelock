@@ -1,5 +1,5 @@
 #include "minimap.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 #include "entity/entity.hpp"
 #include "graphics/framebuffer.hpp"
 #include "algorithm/maze.hpp"

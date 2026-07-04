@@ -1,11 +1,14 @@
 #pragma once
 
+#include "../cfg/constants.hpp"
+
 #include <functional>
+
+class MazeGenerator;
 
 class Walker {
 public:
-    using Callback = std::function<bool()>;
-    using CollisionCheck = std::function<bool(int, int, int)>;  // x, y, dir -> allowed
+    using StepCallback = std::function<bool()>;  // return true = skip remaining steps this frame
 
     // Accessors
     int cell_x() const { return cell_x_; }
@@ -15,6 +18,8 @@ public:
     bool finished() const { return finished_; }
     bool turning() const { return turning_; }
     int steps() const { return steps_; }
+
+    void set_maze(MazeGenerator* m) { maze_ = m; }
 
     // Plan a forward step in the given direction.
     // Returns true if the action was queued (will run after current step finishes).
@@ -35,17 +40,35 @@ public:
 
     bool has_pending() const { return pending_dir_ >= 0; }
 
-    void set_collision_check(CollisionCheck fn) { collision_check_ = std::move(fn); }
+    // Consume callback — called after each step; if set and returns true, walker auto-reverses
+    using ConsumeCheck = std::function<bool(int,int)>;
+    void set_consume_check(ConsumeCheck fn) { consume_check_ = std::move(fn); }
+
+    // God mode — walk through walls
+    void set_god_mode(bool g) { god_mode_ = g; }
+    bool god_mode() const { return god_mode_; }
+
+    // Idle freeze — when true, walker auto-holds position when not advancing (manual mode)
+    void set_freeze_when_idle(bool f) { freeze_when_idle_ = f; }
+    bool freeze_when_idle() const { return freeze_when_idle_; }
+
+    // Manual control — grid-aligned, turn-based movement
+    bool manual_forward();
+    bool manual_back();
+    void manual_turn_left();
+    void manual_turn_right();
 
     // Advance interpolation and call on_complete for each completed step.
-    // If on_complete returns true, the walker returns immediately with cell-centre position.
+    // plan_next is called after each step to let the strategy queue the next action.
+    // Returns true if plan_next returns true (strategy signals to bail).
     void update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
-                float speed, const Callback& on_complete);
+                float speed, const StepCallback& plan_next = nullptr);
 
 private:
     void execute_move(int dir);
     void execute_turn(int dir);
     void flush_pending();
+    void snap_to_cell(float& pos_x, float& pos_y, float& dir_x, float& dir_y);
 
     int cell_x_ = 0, cell_y_ = 0;
     int direction_ = 1;
@@ -62,9 +85,12 @@ private:
     bool pending_turn_ = false;
     bool stepping_ = false;
 
-    CollisionCheck collision_check_;
+    MazeGenerator* maze_ = nullptr;
+    bool god_mode_ = false;
+    bool freeze_when_idle_ = false;
 
-    static constexpr float PI_2 = 1.57079632679f;
+public:
+    ConsumeCheck consume_check_;
     static constexpr int dx[4] = { 0, 1, 0, -1 };
     static constexpr int dy[4] = {-1, 0, 1,  0 };
 };

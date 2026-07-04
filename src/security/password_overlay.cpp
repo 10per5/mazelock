@@ -1,5 +1,5 @@
 #include "password_overlay.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 
 #include <algorithm>
 #include <chrono>

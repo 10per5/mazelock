@@ -1,13 +1,10 @@
-#include "autoplay.hpp"
-#include "algorithm/collision.hpp"
-#include "config.hpp"
+#include "auto_walk_strategy.hpp"
+#include "cfg/config.hpp"
 #include "algorithm/maze.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-
-static constexpr float PI = 3.14159265358979f;
+#include <cstdlib>
 
 static const char* dir_name(int d) {
     static const char* names[] = {"N", "E", "S", "W"};
@@ -18,10 +15,9 @@ static const char* dir_name(int d) {
 // Decision planning (AI layer)
 // -----------------------------------------------------------------------
 
-void AutoplayAI::plan_next_step(const MazeGenerator& maze) {
+void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
     // In manual mode — freeze walker so it doesn't drift between inputs.
-    // But only when no step was just started by flush_pending (avoid overwriting targets).
-    if (manual_mode_) {
+    if (walker_.freeze_when_idle()) {
         if (!walker_.advancing())
             walker_.hold_position();
         return;
@@ -96,7 +92,7 @@ void AutoplayAI::plan_next_step(const MazeGenerator& maze) {
     }
 }
 
-int AutoplayAI::do_reverse() {
+int AutoWalkStrategy::do_reverse() {
     int back_dir = (walker_.direction() + 2) % 4;
     walker_.plan_move(back_dir);
     return back_dir;
@@ -107,43 +103,17 @@ int AutoplayAI::do_reverse() {
 // Returns true to request an early bail (pause or finish)
 // -----------------------------------------------------------------------
 
-bool AutoplayAI::on_step_complete(const MazeGenerator& maze) {
+bool AutoWalkStrategy::on_step_complete(const MazeGenerator& maze) {
     if (reverse_requested_) {
         reverse_requested_ = false;
         int new_dir = do_reverse();
         if (cfg.debug_mode())
-            printf("[AI] REVERSE via consume at (%d,%d) now %s\n",
+            printf("[AI] REVERSE via request at (%d,%d) now %s\n",
                    walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
-        if (maze.is_finish(walker_.cell_x(), walker_.cell_y())) {
-            walker_.set_finished(true);
-            if (cfg.debug_mode())
-                printf("[AI] SOLVED in %d steps!\n", walker_.steps());
-        }
-        return false;
-    }
-
-    if (!disable_animal_reverse_ && consume_check_ && consume_check_(walker_.cell_x(), walker_.cell_y())) {
-        int new_dir = do_reverse();
-        if (cfg.debug_mode())
-            printf("[AI] REVERSE via consume at (%d,%d) now %s\n",
-                   walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
-        if (maze.is_finish(walker_.cell_x(), walker_.cell_y())) {
-            walker_.set_finished(true);
-            if (cfg.debug_mode())
-                printf("[AI] SOLVED in %d steps!\n", walker_.steps());
-        }
         return false;
     }
 
     plan_next_step(maze);
-
-    if (maze.is_finish(walker_.cell_x(), walker_.cell_y())) {
-        walker_.set_finished(true);
-        if (cfg.debug_mode())
-            printf("[AI] SOLVED in %d steps!\n", walker_.steps());
-        return true;
-    }
-
     return pause_ > 0;
 }
 
@@ -151,7 +121,7 @@ bool AutoplayAI::on_step_complete(const MazeGenerator& maze) {
 // Public API
 // -----------------------------------------------------------------------
 
-void AutoplayAI::set_path(int from_x, int from_y, std::vector<std::pair<int,int>> path) {
+void AutoWalkStrategy::set_path(int from_x, int from_y, std::vector<std::pair<int,int>> path) {
     path_ = std::move(path);
     path_idx_ = 1;
     int ndir = 1;
@@ -162,94 +132,45 @@ void AutoplayAI::set_path(int from_x, int from_y, std::vector<std::pair<int,int>
     }
     walker_.teleport(from_x, from_y, ndir);
     pause_ = 0;
-    disable_animal_reverse_ = true;
 }
 
-void AutoplayAI::clear_path() {
+void AutoWalkStrategy::clear_path() {
     path_.clear();
     path_idx_ = -1;
-    disable_animal_reverse_ = false;
 }
 
-void AutoplayAI::request_reverse() {
+void AutoWalkStrategy::request_reverse() {
     reverse_requested_ = true;
 }
 
-void AutoplayAI::reset() {
+void AutoWalkStrategy::reset(float pos_x, float pos_y, float dir_x, float dir_y) {
     rng_.seed(std::random_device{}());
-    walker_.reset();
     pause_ = 0;
     reverse_requested_ = false;
-    manual_mode_ = false;
     path_.clear();
     path_idx_ = -1;
-    disable_animal_reverse_ = false;
-}
-
-// Manual control
-
-bool AutoplayAI::manual_forward(const MazeGenerator& maze) {
-    int dir = walker_.turning() ? walker_.target_direction() : walker_.direction();
-    if (!god_mode_ && maze.is_wall(walker_.cell_x(), walker_.cell_y(), dir)) return false;
-    if (!walker_.plan_move(dir))
-        walker_.restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] forward (%d,%d) %s\n",
-               walker_.cell_x(), walker_.cell_y(), dir_name(dir));
-    return true;
-}
-
-bool AutoplayAI::manual_back(const MazeGenerator& maze) {
-    int back_dir = walker_.turning()
-        ? (walker_.target_direction() + 2) % 4
-        : (walker_.direction() + 2) % 4;
-    if (!god_mode_ && maze.is_wall(walker_.cell_x(), walker_.cell_y(), back_dir)) return false;
-    if (!walker_.plan_move(back_dir))
-        walker_.restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] back (%d,%d) now %s\n",
-               walker_.cell_x(), walker_.cell_y(), dir_name(back_dir));
-    return true;
-}
-
-bool AutoplayAI::manual_turn_left() {
-    int new_dir = (walker_.direction() + 3) % 4;
-    if (!walker_.plan_turn(new_dir))
-        walker_.restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] turn left (%d,%d) now %s\n",
-               walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
-    return true;
-}
-
-bool AutoplayAI::manual_turn_right() {
-    int new_dir = (walker_.direction() + 1) % 4;
-    if (!walker_.plan_turn(new_dir))
-        walker_.restart_step();
-    if (cfg.debug_mode())
-        printf("[MANUAL] turn right (%d,%d) now %s\n",
-               walker_.cell_x(), walker_.cell_y(), dir_name(new_dir));
-    return true;
+    walker_.reset();
+    int cx = static_cast<int>(pos_x);
+    int cy = static_cast<int>(pos_y);
+    int ndir = 1;
+    if (dir_x > 0.5f)      ndir = 1;
+    else if (dir_x < -0.5f) ndir = 3;
+    else if (dir_y < -0.5f) ndir = 0;
+    else if (dir_y > 0.5f)  ndir = 2;
+    walker_.teleport(cx, cy, ndir);
 }
 
 // Main update
 
-void AutoplayAI::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
-                        const MazeGenerator& maze, float speed) {
+void AutoWalkStrategy::update(float dt, float& pos_x, float& pos_y,
+                               float& dir_x, float& dir_y, MazeGenerator& maze,
+                               float speed) {
     if (walker_.finished()) return;
     if (pause_ > 0) { --pause_; return; }
 
-    walker_.set_collision_check([this, &maze](int x, int y, int dir) {
-        if (god_mode_) return true;
-        return collision::can_move(maze, x, y, dir);
-    });
-
-    // Kickstart: if the walker is idle (e.g. frozen by hold_position after a mode
-    // switch from manual), plan the next AI move immediately so the walker doesn't
-    // stall waiting for a step to complete.
     if (!walker_.advancing())
         plan_next_step(maze);
 
-    walker_.update(pos_x, pos_y, dir_x, dir_y, speed,
+    walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt,
                    [this, &maze]() { return on_step_complete(maze); });
 }

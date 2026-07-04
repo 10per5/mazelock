@@ -6,7 +6,8 @@ name = "build"
 description = "Build mazelock binary"
 type = "premake5"
 outputs = ["root://bin/mazelock"]
-clean = 1
+clean = true
+clean_paths = ["root://obj"]
 
 [install]
 depends = ["build"]
@@ -17,4 +18,5 @@ artifacts = [
 [[stages]]
 name = "clean"
 description = "Clean build artifacts"
-type = "run"
+type = "clean"
+targets = ["build"]

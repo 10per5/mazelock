@@ -1,5 +1,5 @@
 #include "game_state_machine.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 #include "player/player.hpp"
 #include "algorithm/scheduler.hpp"
 

@@ -3,7 +3,7 @@
 #include "algorithm/maze.hpp"
 
 #include <cstdio>
-#include "config.hpp"
+#include "cfg/config.hpp"
 
 static const char* dir_name(int d) {
     static const char* names[] = {"N", "E", "S", "W"};
@@ -57,7 +57,7 @@ void GoalSeekerStrategy::update(float dt, float& pos_x, float& pos_y,
 
     if (path_idx_ < 0) {
         walker_.hold_position();
-        walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt, nullptr);
+        walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt);
         return;
     }
 
@@ -67,12 +67,6 @@ void GoalSeekerStrategy::update(float dt, float& pos_x, float& pos_y,
 
     walker_.update(pos_x, pos_y, dir_x, dir_y, speed * dt,
                    [this, &maze]() -> bool {
-                       if (maze.is_finish(walker_.cell_x(), walker_.cell_y())) {
-                           walker_.set_finished(true);
-                           if (cfg.debug_mode())
-                               printf("[SEEKER] SOLVED in %d steps!\n", walker_.steps());
-                           return true;
-                       }
                        plan_next(maze);
                        return false;
                    });

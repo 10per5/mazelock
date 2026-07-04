@@ -1,5 +1,5 @@
 #include "world.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 #include "terminal.hpp"
 
 #include "player/player.hpp"

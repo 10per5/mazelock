@@ -1,5 +1,5 @@
 #include "raycaster.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 #include "texture.hpp"
 #include "texture_manager.hpp"
 #include "algorithm/maze.hpp"

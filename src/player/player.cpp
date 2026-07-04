@@ -1,15 +1,13 @@
 #include "player.hpp"
-#include "auto_walk_strategy.hpp"
-#include "manual_walk_strategy.hpp"
-#include "goal_seeker_strategy.hpp"
+#include "strategy/auto_walk_strategy.hpp"
+#include "strategy/goal_seeker_strategy.hpp"
 #include "pathfind.hpp"
-#include "config.hpp"
+#include "cfg/config.hpp"
 #include "algorithm/maze.hpp"
 #include "entity/entity_thread.hpp"
 
 Player::Player()
     : autowalk_(std::make_unique<AutoWalkStrategy>())
-    , manual_(std::make_unique<ManualWalkStrategy>())
     , seeker_(std::make_unique<GoalSeekerStrategy>())
     , current_(autowalk_.get()) {}
 
@@ -19,25 +17,41 @@ void Player::init(MazeGenerator& maze, EntityThread& entities) {
     maze_ = &maze;
     entities_ = &entities;
     ai_speed_ = cfg.ai_speed();
-    player_speed_ = 3.0f;
 
-    auto consume_check = [this](int x, int y) -> bool {
+    consume_fn_ = [this](int x, int y) -> bool {
         return entities_->consume_animal_at(x, y, *maze_, pos_x_, pos_y_);
     };
-    autowalk_->set_consume_check(consume_check);
-    manual_->set_consume_check(consume_check);
+
+    autowalk_->set_maze(&maze);
+    seeker_->set_maze(&maze);
+    autowalk_->walker().set_consume_check(consume_fn_);
 }
 
 void Player::switch_to(WalkStrategy* s) {
     if (current_ == s) return;
+
+    // Leave manual mode when switching to a non-manual strategy
+    if (current_)
+        current_->walker().set_freeze_when_idle(false);
+
     s->reset(pos_x_, pos_y_, dir_x_, dir_y_);
+    s->walker().set_consume_check(consume_fn_);
     current_ = s;
+}
+
+void Player::enable_manual() {
+    // If already on auto strategy with freeze_on, we're already in manual mode
+    if (current_ == autowalk_.get() && current_->walker().freeze_when_idle())
+        return;
+    switch_to(autowalk_.get());
+    current_->walker().set_freeze_when_idle(true);
 }
 
 void Player::update(float dt) {
     if (current_->finished()) return;
 
-    float speed = (current_ == manual_.get()) ? player_speed_ : ai_speed_;
+    bool manual = current_->walker().freeze_when_idle();
+    float speed = manual ? 3.0f : ai_speed_;
     speed *= speed_mult_;
 
     current_->update(dt, pos_x_, pos_y_, dir_x_, dir_y_, *maze_, speed);
@@ -65,39 +79,39 @@ void Player::update(float dt) {
     }
 
     // Auto-repeat in manual mode
-    if (current_ == manual_.get() && held_dir_ != 0 && !current_->advancing()) {
+    if (manual && held_dir_ != 0 && !current_->advancing()) {
         switch (held_dir_) {
-        case 1: manual_->move_forward(*maze_);  break;
-        case 2: manual_->move_back(*maze_);     break;
-        case 3: manual_->turn_left();           break;
-        case 4: manual_->turn_right();          break;
+        case 1: current_->walker().manual_forward(); break;
+        case 2: current_->walker().manual_back();    break;
+        case 3: current_->walker().manual_turn_left();  break;
+        case 4: current_->walker().manual_turn_right(); break;
         }
     }
 }
 
 bool Player::move_forward() {
-    switch_to(manual_.get());
-    return manual_->move_forward(*maze_);
+    enable_manual();
+    return current_->walker().manual_forward();
 }
 
 bool Player::move_back() {
-    switch_to(manual_.get());
-    return manual_->move_back(*maze_);
+    enable_manual();
+    return current_->walker().manual_back();
 }
 
 void Player::turn_left() {
-    switch_to(manual_.get());
-    manual_->turn_left();
+    enable_manual();
+    current_->walker().manual_turn_left();
 }
 
 void Player::turn_right() {
-    switch_to(manual_.get());
-    manual_->turn_right();
+    enable_manual();
+    current_->walker().manual_turn_right();
 }
 
 void Player::set_god_mode(bool g) {
-    manual_->set_god_mode(g);
     autowalk_->set_god_mode(g);
+    seeker_->set_god_mode(g);
     if (cfg.debug_mode())
         printf("[GODMODE] %s\n", g ? "ON" : "OFF");
 }
@@ -129,7 +143,6 @@ void Player::reset() {
     speed_mult_ = 1.0f;
 
     autowalk_->reset(pos_x_, pos_y_, dir_x_, dir_y_);
-    manual_->reset(pos_x_, pos_y_, dir_x_, dir_y_);
     seeker_->reset(pos_x_, pos_y_, dir_x_, dir_y_);
     current_ = autowalk_.get();
 }

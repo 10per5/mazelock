@@ -1,6 +1,6 @@
 #pragma once
 
-#include "walk_strategy.hpp"
+#include "strategy/walk_strategy.hpp"
 
 #include <memory>
 #include <utility>
@@ -9,7 +9,6 @@
 class MazeGenerator;
 class EntityThread;
 class AutoWalkStrategy;
-class ManualWalkStrategy;
 class GoalSeekerStrategy;
 
 class Player {
@@ -57,9 +56,9 @@ public:
 
 private:
     void switch_to(WalkStrategy* s);
+    void enable_manual();
 
     std::unique_ptr<AutoWalkStrategy> autowalk_;
-    std::unique_ptr<ManualWalkStrategy> manual_;
     std::unique_ptr<GoalSeekerStrategy> seeker_;
     WalkStrategy* current_ = nullptr;
 
@@ -69,10 +68,11 @@ private:
     MazeGenerator* maze_ = nullptr;
     EntityThread* entities_ = nullptr;
 
-    float player_speed_ = 3.0f;
     float ai_speed_ = 2.0f;
     float speed_mult_ = 1.0f;
 
     int prev_cx_ = -1, prev_cy_ = -1;
     int held_dir_ = 0; // 0=none, 1=fwd, 2=back, 3=left, 4=right
+
+    Walker::ConsumeCheck consume_fn_;
 };
