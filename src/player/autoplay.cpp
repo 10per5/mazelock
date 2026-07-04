@@ -189,8 +189,8 @@ void AutoplayAI::reset() {
 // Manual control
 
 bool AutoplayAI::manual_forward(const MazeGenerator& maze) {
-    int dir = walker_.direction();
-    if (maze.is_wall(walker_.cell_x(), walker_.cell_y(), dir)) return false;
+    int dir = walker_.turning() ? walker_.target_direction() : walker_.direction();
+    if (!god_mode_ && maze.is_wall(walker_.cell_x(), walker_.cell_y(), dir)) return false;
     if (!walker_.plan_move(dir))
         walker_.restart_step();
     if (cfg.debug_mode())
@@ -200,8 +200,10 @@ bool AutoplayAI::manual_forward(const MazeGenerator& maze) {
 }
 
 bool AutoplayAI::manual_back(const MazeGenerator& maze) {
-    int back_dir = (walker_.direction() + 2) % 4;
-    if (maze.is_wall(walker_.cell_x(), walker_.cell_y(), back_dir)) return false;
+    int back_dir = walker_.turning()
+        ? (walker_.target_direction() + 2) % 4
+        : (walker_.direction() + 2) % 4;
+    if (!god_mode_ && maze.is_wall(walker_.cell_x(), walker_.cell_y(), back_dir)) return false;
     if (!walker_.plan_move(back_dir))
         walker_.restart_step();
     if (cfg.debug_mode())
@@ -237,7 +239,8 @@ void AutoplayAI::update(float& pos_x, float& pos_y, float& dir_x, float& dir_y,
     if (walker_.finished()) return;
     if (pause_ > 0) { --pause_; return; }
 
-    walker_.set_collision_check([&maze](int x, int y, int dir) {
+    walker_.set_collision_check([this, &maze](int x, int y, int dir) {
+        if (god_mode_) return true;
         return collision::can_move(maze, x, y, dir);
     });
 

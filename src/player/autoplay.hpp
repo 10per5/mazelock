@@ -27,6 +27,7 @@ class AutoplayAI {
     static constexpr int PAUSE_FRAMES = 30;
 
     bool disable_animal_reverse_ = false;
+    bool god_mode_ = false;
 
     void plan_next_step(const MazeGenerator& maze);
     int do_reverse();  // returns the reversed direction
@@ -47,6 +48,7 @@ public:
     void request_reverse();
     void reset();
     void set_manual_mode(bool m) { manual_mode_ = m; }
+    void set_god_mode(bool g) { god_mode_ = g; }
 
     // Manual control — grid-aligned, turn-based movement
     bool manual_forward(const MazeGenerator& maze);

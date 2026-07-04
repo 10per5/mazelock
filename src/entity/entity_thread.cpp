@@ -18,6 +18,8 @@ EntityThread::~EntityThread() {}
 void EntityThread::set_sprites(const TextureManager& tm) {
     rat_sprite_ = &tm.rat();
     coin_sprite_ = &tm.coin();
+    start_sprite_ = &tm.start();
+    goal_sprite_ = &tm.goal();
 }
 
 void EntityThread::init(MazeGenerator& maze) {
@@ -30,9 +32,9 @@ void EntityThread::init(MazeGenerator& maze) {
             if (obj == OBJECT_COIN)
                 owned_.push_back(std::make_unique<Coin>(x, y, coin_sprite_));
             else if (obj == OBJECT_START)
-                owned_.push_back(std::make_unique<Goal>(x, y, 0xFF00FFFF));
+                owned_.push_back(std::make_unique<Goal>(x, y, 0xFF00FFFF, start_sprite_));
             else if (obj == OBJECT_FINISH)
-                owned_.push_back(std::make_unique<Goal>(x, y, 0xFFFF0000));
+                owned_.push_back(std::make_unique<Goal>(x, y, 0xFFFF0000, goal_sprite_));
             else if (obj == OBJECT_ANIMAL)
                 owned_.push_back(std::make_unique<Animal>(x, y, rat_sprite_));
         }
@@ -99,6 +101,9 @@ void EntityThread::render_sprites(uint32_t* color_buffer, const float* depth_buf
                       render_w, render_h, wall_height);
         else if (auto* c = dynamic_cast<const Coin*>(e.get()))
             c->render(color_buffer, depth_buffer, camera,
+                      render_w, render_h, wall_height);
+        else if (auto* g = dynamic_cast<const Goal*>(e.get()))
+            g->render(color_buffer, depth_buffer, camera,
                       render_w, render_h, wall_height);
     }
 }

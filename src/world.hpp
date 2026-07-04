@@ -40,4 +40,5 @@ private:
     PasswordOverlay* pw_overlay_ = nullptr;
     Player* player_ = nullptr;
     Drawer* drawer_ = nullptr;
+    bool god_mode_ = false;
 };

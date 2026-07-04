@@ -14,6 +14,8 @@ bool TextureManager::init(const std::string& tex_dir) {
     generate_coin();
     generate_rat();
     generate_heart();
+    generate_start();
+    generate_goal();
     return true;
 #endif
 }
@@ -33,6 +35,8 @@ bool TextureManager::load_from_png(const std::string& dir) {
     load(coin_,    "coin.png");
     load(rat_,     "rat.png");
     load(heart_,   "heart.png");
+    load(start_,   "start.png");
+    load(goal_,    "goal.png");
     return ok;
 }
 
@@ -167,6 +171,54 @@ void TextureManager::generate_heart() {
                 heart_.set_pixel(x, y, 0xFFFF2040);
             else
                 heart_.set_pixel(x, y, 0x00000000);
+        }
+    }
+}
+
+void TextureManager::generate_start() {
+    int w = 16, h = 16;
+    start_.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint32_t c = 0xFF33AA33;
+            bool inner = x >= 2 && x < 14 && y >= 2 && y < 14;
+            if (!inner) {
+                c = 0xFF226622;
+            } else {
+                bool s_horiz = (y == 5 || y == 8 || y == 11);
+                bool s_vert  = ((y >= 3 && y <= 5) || (y >= 8 && y <= 11));
+                bool fill = false;
+                if (s_horiz && x >= 4 && x <= 11)
+                    fill = true;
+                else if (s_vert && (x == 4 || x == 11))
+                    fill = true;
+                else if (y >= 6 && y <= 7 && x == 4)
+                    fill = true;
+                if (!fill)
+                    c = 0xFF33AA33;
+                else
+                    c = 0xFF006600;
+            }
+            start_.set_pixel(x, y, c);
+        }
+    }
+}
+
+void TextureManager::generate_goal() {
+    int w = 16, h = 16;
+    goal_.create(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint32_t c;
+            int chk = (x / 2 + y / 2) & 1;
+            if (chk)
+                c = 0xFFFFFFFF;
+            else
+                c = 0xFF222222;
+            bool border = x < 1 || x >= 15 || y < 1 || y >= 15;
+            if (border)
+                c = 0xFF444444;
+            goal_.set_pixel(x, y, c);
         }
     }
 }

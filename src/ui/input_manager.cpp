@@ -24,6 +24,17 @@ void InputManager::on_event(KeySym ks, bool press) {
                 f11_combo_state_ = 1;
         }
         break;
+    case XK_F10:
+        if (press) {
+            auto now = std::chrono::steady_clock::now();
+            float elapsed = std::chrono::duration<float>(now - last_f10_time_).count();
+            last_f10_time_ = now;
+            if (elapsed < 0.5f && elapsed >= 0.0f)
+                ++f10_combo_state_;
+            else
+                f10_combo_state_ = 1;
+        }
+        break;
     default: break;
     }
 }
@@ -34,6 +45,10 @@ const KeyState& InputManager::state() {
     if (elapsed >= 0.5f && f11_combo_state_ > 0)
         f11_combo_state_ = 0;
     state_.f11_combo = f11_combo_state_;
+    elapsed = std::chrono::duration<float>(now - last_f10_time_).count();
+    if (elapsed >= 0.5f && f10_combo_state_ > 0)
+        f10_combo_state_ = 0;
+    state_.f10_combo = f10_combo_state_;
     return state_;
 }
 
@@ -48,9 +63,15 @@ void InputManager::reset_state() {
     state_ = KeyState{};
     press_queue_.clear();
     f11_combo_state_ = 0;
+    f10_combo_state_ = 0;
 }
 
 void InputManager::reset_f11_combo() {
     f11_combo_state_ = 0;
     state_.f11_combo = 0;
+}
+
+void InputManager::reset_f10_combo() {
+    f10_combo_state_ = 0;
+    state_.f10_combo = 0;
 }

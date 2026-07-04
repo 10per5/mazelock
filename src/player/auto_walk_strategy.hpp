@@ -20,6 +20,7 @@ public:
 
     void reset(float pos_x, float pos_y, float dir_x, float dir_y) override;
     void set_consume_check(std::function<bool(int,int)> fn) override;
+    void set_god_mode(bool g) { ai_.set_god_mode(g); }
 
 private:
     Walker walker_;

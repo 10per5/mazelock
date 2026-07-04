@@ -11,6 +11,7 @@ public:
     int cell_x() const { return cell_x_; }
     int cell_y() const { return cell_y_; }
     int direction() const { return direction_; }
+    int target_direction() const { return next_dir_; }
     bool finished() const { return finished_; }
     bool turning() const { return turning_; }
     int steps() const { return steps_; }

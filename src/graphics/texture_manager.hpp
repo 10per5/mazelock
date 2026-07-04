@@ -14,6 +14,8 @@ public:
     const Texture& coin()    const { return coin_; }
     const Texture& rat()     const { return rat_; }
     const Texture& heart()   const { return heart_; }
+    const Texture& start()   const { return start_; }
+    const Texture& goal()    const { return goal_; }
 
 private:
     Texture wall_;
@@ -22,6 +24,8 @@ private:
     Texture coin_;
     Texture rat_;
     Texture heart_;
+    Texture start_;
+    Texture goal_;
 
     void generate_wall();
     void generate_floor();
@@ -29,6 +33,8 @@ private:
     void generate_coin();
     void generate_rat();
     void generate_heart();
+    void generate_start();
+    void generate_goal();
 
     bool load_from_png(const std::string& dir);
 };

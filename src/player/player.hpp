@@ -33,6 +33,7 @@ public:
     // Mode switching
     void enable_autowalk();
     void pathfind_to_finish();
+    void set_god_mode(bool g);
 
     // Queries
     bool finished() const { return current_->finished(); }

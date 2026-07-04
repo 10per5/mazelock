@@ -95,6 +95,13 @@ void Player::turn_right() {
     manual_->turn_right();
 }
 
+void Player::set_god_mode(bool g) {
+    manual_->set_god_mode(g);
+    autowalk_->set_god_mode(g);
+    if (cfg.debug_mode())
+        printf("[GODMODE] %s\n", g ? "ON" : "OFF");
+}
+
 void Player::enable_autowalk() {
     switch_to(autowalk_.get());
     if (cfg.debug_mode())

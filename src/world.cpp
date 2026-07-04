@@ -96,10 +96,11 @@ void World::run() {
             while ((press_ks = input_mgr_.consume_press()) != NoSymbol) {
                 auto st = state_machine_.state();
                 if (st == GameStateMachine::State::RUNNING &&
-                    press_ks >= XK_space && press_ks <= XK_asciitilde) {
+                    ((press_ks >= XK_space && press_ks <= XK_asciitilde) || press_ks == XK_Escape)) {
                     state_machine_.lock();
                     pw_overlay_->activate();
-                    pw_overlay_->handle_key(press_ks);
+                    if (press_ks != XK_Escape)
+                        pw_overlay_->handle_key(press_ks);
                     player_->enable_autowalk();
                     input_mgr_.reset_state();
                     idle_start = now;
@@ -110,9 +111,17 @@ void World::run() {
             }
         }
 
-        // ---- F11 combo handling ----
+        // ---- F10/F11 combo handling ----
         if (state_machine_.state() != GameStateMachine::State::LOCKED) {
             const auto& keys = input_mgr_.state();
+
+            if (keys.f10_combo >= 3) {
+                god_mode_ = !god_mode_;
+                player_->set_god_mode(god_mode_);
+                input_mgr_.reset_f10_combo();
+                if (cfg.debug_mode())
+                    printf("[WORLD] god_mode=%d\n", god_mode_);
+            }
 
             if (keys.f11_combo >= 3) {
                 player_->pathfind_to_finish();
