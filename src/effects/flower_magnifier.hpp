@@ -33,6 +33,7 @@ private:
     Phase phase_ = Phase::FAR;
     float phase_time_ = 0.0f; // seconds elapsed in current phase
     float bob_phase_ = 0.0f;
+    float time_ = 0.0f;       // free-running clock, drives the color wash
 
     // Internal 16:9 composition buffer for the flower + its background.
     // Nearest-neighbour upscaled into a centred viewport in render().

@@ -1,4 +1,5 @@
 #include "flower_magnifier.hpp"
+#include "color_wash.hpp"
 
 #include "graphics/texture_manager.hpp"
 #include "graphics/texture.hpp"
@@ -36,6 +37,7 @@ void FlowerMagnifierEffect::pick_next_flower() {
 void FlowerMagnifierEffect::update(float dt) {
     phase_time_ += dt;
     bob_phase_ += dt;
+    time_ += dt;
 
     switch (phase_) {
         case Phase::FAR:
@@ -131,6 +133,12 @@ void FlowerMagnifierEffect::rebuild_cache() {
             cache_[py * CACHE_W + px] = c;
         }
     }
+
+    // Slow, subtle color drift — mitigates burn-in from the flower's petal
+    // colors sitting in the same screen region for extended zoom holds.
+    // Cheap: runs once per frame over the low-res composite, not the real
+    // screen size.
+    apply_color_wash(cache_.data(), CACHE_W, CACHE_H, time_, 0.10f);
 }
 
 void FlowerMagnifierEffect::render(uint32_t* buffer, int width, int height) {

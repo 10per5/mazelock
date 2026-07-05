@@ -1,4 +1,5 @@
 #include "fish_aquarium.hpp"
+#include "color_wash.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -153,6 +154,11 @@ void FishAquariumEffect::update(float dt) {
 
     for (const auto& f : fish_)
         draw_fish(f);
+
+    // Slow, subtle color drift across the whole scene — mitigates burn-in
+    // from the same colors sitting in the same spot for hours. Cheap: runs
+    // once per frame over the low-res cache, not the real screen size.
+    apply_color_wash(cache_.data(), RENDER_W, RENDER_H, time_, 0.10f);
 }
 
 void FishAquariumEffect::draw_kelp(const Kelp& k) {
