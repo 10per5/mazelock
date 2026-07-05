@@ -10,6 +10,36 @@ static const char* dir_name(int d) {
     return names[d];
 }
 
+// -- turn-around -----------------------------------------------------------
+
+void Walker::start_turnaround(const MazeGenerator& maze) {
+    int cur = direction_;
+    // Check order: 180° (opposite), +1 (right/clockwise), +3 (left), +0 (forward)
+    static constexpr int order[] = {2, 1, 3, 0};
+    int best = cur;
+    for (int offset : order) {
+        int dir = (cur + offset) % 4;
+        if (!maze.is_wall(cell_x_, cell_y_, dir)) {
+            best = dir;
+            break;
+        }
+    }
+    turnaround_target_dir_ = best;
+    g_logger->debug("[WALKER] start_turnaround: cur=%s target=%s",
+               dir_name(cur), dir_name(best));
+}
+
+bool Walker::advance_turnaround() {
+    if (turnaround_target_dir_ < 0)
+        return true;
+    if (direction_ == turnaround_target_dir_) {
+        turnaround_target_dir_ = -1;
+        return true;
+    }
+    plan_turn((direction_ + 3) % 4);
+    return false;
+}
+
 void Walker::execute_move(int dir) {
     start_x_ = static_cast<float>(cell_x_) + 0.5f;
     start_y_ = static_cast<float>(cell_y_) + 0.5f;
@@ -119,6 +149,7 @@ void Walker::teleport(int x, int y, int dir) {
     finished_ = false;
     stepping_ = false;
     pending_dir_ = -1;
+    turnaround_target_dir_ = -1;
     consume_pause_ = 0;
     bump_frames_ = 0;
     start_x_ = static_cast<float>(x) + 0.5f;
@@ -166,6 +197,7 @@ void Walker::reset() {
     steps_ = 0;
     stepping_ = false;
     pending_dir_ = -1;
+    turnaround_target_dir_ = -1;
     consume_pause_ = 0;
     bump_frames_ = 0;
     start_x_ = end_x_ = 0.5f;

@@ -67,6 +67,13 @@ public:
     void start_bump(int dir);
     bool bumping() const { return bump_frames_ > 0; }
 
+    // Turn-around sequence: find best open direction (180° → +1 → +3 → 0°)
+    // and execute phased 90° left turns. Call start_turnaround once, then
+    // call advance_turnaround() each logical frame (after step completes).
+    void start_turnaround(const MazeGenerator& maze);
+    bool advance_turnaround();
+    bool turnaround_active() const { return turnaround_target_dir_ >= 0; }
+
     // Advance interpolation and call on_complete for each completed step.
     // plan_next is called after each step to let the strategy queue the next action.
     // Returns true if plan_next returns true (strategy signals to bail).
@@ -104,6 +111,7 @@ private:
     int consume_pause_ = 0;
     ConsumeCheck consume_check_;
     OnAnimal on_animal_;
+    int turnaround_target_dir_ = -1;
 
 public:
     static constexpr int CONSUME_PAUSE_FRAMES = 30;

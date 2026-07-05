@@ -88,20 +88,27 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
         clear_path();
     }
 
+    // After the walk-away phase (reverse_steps_ counted down by
+    // on_step_complete), turn back toward navigable direction via
+    // phased 90° left turns.  Placed before the "turning → move"
+    // check so turnaround turns are not preempted by a forward move.
+    if (reverse_steps_ == 0) {
+        if (!walker_.turnaround_active()) {
+            walker_.start_turnaround(maze);
+        }
+        if (walker_.advancing())
+            return;
+        if (walker_.advance_turnaround()) {
+            reverse_steps_ = -1;  // prevent re-entry
+            return;               // fall through to normal navigation
+        }
+        return;
+    }
+
     // After completing a turn, always move forward (don't re-evaluate)
     if (walker_.turning() && !reversing_) {
         walker_.plan_move(walker_.direction());
         return;
-    }
-
-    // After the walk-away phase (reverse_steps_ counted down by
-    // on_step_complete), turn back to the original direction.
-    if (reverse_finish_dir_ >= 0 && reverse_steps_ == 0) {
-        if (walker_.direction() != reverse_finish_dir_) {
-            walker_.plan_turn(reverse_finish_dir_);
-            return;
-        }
-        reverse_finish_dir_ = -1;
     }
 
     // Right-hand rule + random exploration
@@ -193,8 +200,7 @@ void AutoWalkStrategy::reset(float pos_x, float pos_y, float dir_x, float dir_y)
     reversing_ = false;
     reverse_phase_ = 0;
     reverse_target_ = 2;
-    reverse_steps_ = 0;
-    reverse_finish_dir_ = -1;
+    reverse_steps_ = -1;
     path_.clear();
     path_idx_ = -1;
     walker_.reset();
@@ -223,7 +229,6 @@ void AutoWalkStrategy::update(float dt, float& pos_x, float& pos_y,
             reverse_pause_ = 45;
             reversing_ = true;
             reverse_phase_ = 0;
-            reverse_finish_dir_ = walker_.direction();
             reverse_steps_ = 5 + std::uniform_int_distribution<int>(0, 1)(rng_);
         });
         on_animal_setup_ = true;

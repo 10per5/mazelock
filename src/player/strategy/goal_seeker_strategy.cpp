@@ -24,7 +24,6 @@ void GoalSeekerStrategy::set_path(int from_x, int from_y,
 }
 
 void GoalSeekerStrategy::plan_next(const MazeGenerator& maze) {
-    (void)maze;
     if (path_idx_ < 0 || path_idx_ >= static_cast<int>(path_.size())) {
         path_idx_ = -1;
         path_done_ = true;
@@ -39,8 +38,13 @@ void GoalSeekerStrategy::plan_next(const MazeGenerator& maze) {
         int target_dir = (dx_ == 1) ? 1 : (dx_ == -1) ? 3 : (dy_ == -1) ? 0 : 2;
 
         if (target_dir == walker_.direction()) {
-            ++path_idx_;
+            // Check for animal in target cell — still call plan_move to
+            // trigger the consume/flee, but don't advance path_idx_ so
+            // we retry after the animal clears.
+            bool animal_here = (maze.get_object(tx, ty) == OBJECT_ANIMAL);
             walker_.plan_move(target_dir);
+            if (!animal_here)
+                ++path_idx_;
         } else {
             walker_.plan_turn(target_dir);
         }

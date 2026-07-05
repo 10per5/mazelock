@@ -31,8 +31,7 @@ private:
     bool reversing_ = false;
     int reverse_phase_ = 0;   // number of 90° turns completed so far
     int reverse_target_ = 2;  // how many 90° turns to attempt
-    int reverse_steps_ = 0;   // remaining forward steps after reverse turn
-    int reverse_finish_dir_ = -1;  // direction to face when walk is done
+    int reverse_steps_ = -1;  // remaining forward steps after reverse turn; -1 = inactive
     bool on_animal_setup_ = false;
 
     // Path following state
