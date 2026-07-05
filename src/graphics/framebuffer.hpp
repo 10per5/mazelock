@@ -6,6 +6,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/XShm.h>
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -36,6 +37,8 @@ class Framebuffer {
     Window window_ = 0;
     GC gc_ = nullptr;
     XImage* ximg_ = nullptr;
+    bool use_shm_ = false;
+    XShmSegmentInfo shminfo_{};
     int screen_w_ = 0;
     int screen_h_ = 0;
 
@@ -44,6 +47,7 @@ class Framebuffer {
         int width = 0, height = 0;
         uint8_t* buffer = nullptr;
         XImage* ximg = nullptr;
+        XShmSegmentInfo shminfo{};
         GC gc = nullptr;
     };
     std::vector<BlackoutWin> blackout_wins_;

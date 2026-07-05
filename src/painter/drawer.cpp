@@ -7,6 +7,7 @@
 void Drawer::frame(Framebuffer& fb, Raycaster& raycaster,
                    float wall_height,
                    uint32_t overlay_color, float overlay_alpha) {
+    (void)wall_height;
     const auto& buf = raycaster.color_buffer();
     int rw = raycaster.render_width();
     int rh = raycaster.render_height();
@@ -15,6 +16,12 @@ void Drawer::frame(Framebuffer& fb, Raycaster& raycaster,
 
     if (static_cast<int>(row_buf_.size()) < fb_w)
         row_buf_.resize(fb_w);
+
+    if (static_cast<int>(x_lut_.size()) != fb_w) {
+        x_lut_.resize(fb_w);
+        for (int x = 0; x < fb_w; ++x)
+            x_lut_[x] = x * rw / fb_w;
+    }
 
     int oa = static_cast<int>(overlay_alpha * 255);
     int or_ = (overlay_color >> 16) & 0xFF;
@@ -25,7 +32,7 @@ void Drawer::frame(Framebuffer& fb, Raycaster& raycaster,
         const uint32_t* src = &buf[sy * rw];
         if (oa > 0) {
             for (int x = 0; x < fb_w; ++x) {
-                uint32_t c = src[x * rw / fb_w];
+                uint32_t c = src[x_lut_[x]];
                 int rr = ((c >> 16) & 0xFF) * (255 - oa) / 255 + or_ * oa / 255;
                 int gg = ((c >> 8)  & 0xFF) * (255 - oa) / 255 + og * oa / 255;
                 int bb = (c        & 0xFF) * (255 - oa) / 255 + ob * oa / 255;
@@ -33,7 +40,7 @@ void Drawer::frame(Framebuffer& fb, Raycaster& raycaster,
             }
         } else {
             for (int x = 0; x < fb_w; ++x) {
-                row_buf_[x] = src[x * rw / fb_w];
+                row_buf_[x] = src[x_lut_[x]];
             }
         }
         int y0 = sy * fb_h / rh;

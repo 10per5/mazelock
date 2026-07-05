@@ -1,4 +1,5 @@
 #include "framebuffer.hpp"
+#include "game/singleton.hpp"
 #include "ui/input_manager.hpp"
 
 #include <cstdlib>
@@ -10,6 +11,8 @@
 #include <unistd.h>
 
 #include <X11/extensions/Xinerama.h>
+#include <X11/extensions/XShm.h>
+#include <sys/shm.h>
 
 // ---------------------------------------------------------------------------
 // DRM helpers
@@ -115,7 +118,7 @@ bool Framebuffer::try_fbdev() {
 }
 
 // ---------------------------------------------------------------------------
-// X11 fullscreen via override_redirect
+// X11 fullscreen via override_redirect (MIT-SHM enabled)
 // ---------------------------------------------------------------------------
 
 bool Framebuffer::try_x11() {
@@ -197,10 +200,44 @@ bool Framebuffer::try_x11() {
             bwin.width  = screens[i].width;
             bwin.height = screens[i].height;
             bwin.buffer = static_cast<uint8_t*>(std::calloc(1, bwin.width * bwin.height * 4));
-            bwin.ximg = XCreateImage(display_, visual, depth, ZPixmap, 0,
-                                     nullptr, bwin.width, bwin.height, 32, bwin.width * 4);
-            bwin.ximg->bits_per_pixel = 32;
-            bwin.ximg->data = reinterpret_cast<char*>(bwin.buffer);
+            bwin.ximg = XShmCreateImage(display_, visual, depth, ZPixmap, nullptr,
+                                        &bwin.shminfo, bwin.width, bwin.height);
+            bool shm_ok = bwin.ximg;
+            if (bwin.ximg) {
+                bwin.shminfo.shmid = shmget(IPC_PRIVATE,
+                                             bwin.width * bwin.height * 4,
+                                             IPC_CREAT | 0777);
+                if (bwin.shminfo.shmid >= 0) {
+                    bwin.shminfo.shmaddr = static_cast<char*>(shmat(bwin.shminfo.shmid, 0, 0));
+                    if (bwin.shminfo.shmaddr != reinterpret_cast<char*>(-1)) {
+                        bwin.shminfo.readOnly = False;
+                        bwin.ximg->data = bwin.shminfo.shmaddr;
+                        XShmAttach(display_, &bwin.shminfo);
+                    } else {
+                        g_logger->log("[X11] shmat failed for %dx%d blackout", bwin.width, bwin.height);
+                        shm_ok = false;
+                    }
+                } else {
+                    g_logger->log("[X11] shmget failed for %dx%d blackout", bwin.width, bwin.height);
+                    shm_ok = false;
+                }
+            } else {
+                g_logger->log("[X11] XShmCreateImage failed for %dx%d blackout", bwin.width, bwin.height);
+            }
+            if (!shm_ok) {
+                if (bwin.ximg) {
+                    XDestroyImage(bwin.ximg);
+                    bwin.ximg = nullptr;
+                }
+                bwin.ximg = XCreateImage(display_, visual, depth, ZPixmap, 0,
+                                         nullptr, bwin.width, bwin.height, 32, bwin.width * 4);
+                if (bwin.ximg) {
+                    bwin.ximg->bits_per_pixel = 32;
+                    bwin.ximg->data = reinterpret_cast<char*>(bwin.buffer);
+                    g_logger->log("[X11] MIT-SHM unavailable for %dx%d blackout — falling back to XPutImage",
+                                  bwin.width, bwin.height);
+                }
+            }
             bwin.gc = XCreateGC(display_, bw, 0, nullptr);
             blackout_wins_.push_back(bwin);
         }
@@ -209,16 +246,49 @@ bool Framebuffer::try_x11() {
     if (screens)
         XFree(screens);
 
-    ximg_ = XCreateImage(display_, visual, depth, ZPixmap, 0,
-                         nullptr, width_, height_, 32, stride_);
-    if (!ximg_) {
-        XDestroyWindow(display_, window_);
-        XCloseDisplay(display_);
-        return false;
+    // Try MIT-SHM for the main window
+    use_shm_ = false;
+    int major, minor;
+    Bool pixmaps;
+    if (XShmQueryExtension(display_) &&
+        XShmQueryVersion(display_, &major, &minor, &pixmaps)) {
+        ximg_ = XShmCreateImage(display_, visual, depth, ZPixmap, nullptr,
+                                &shminfo_, width_, height_);
+        if (ximg_) {
+            shminfo_.shmid = shmget(IPC_PRIVATE, stride_ * height_, IPC_CREAT | 0777);
+            if (shminfo_.shmid >= 0) {
+                shminfo_.shmaddr = static_cast<char*>(shmat(shminfo_.shmid, 0, 0));
+                if (shminfo_.shmaddr != reinterpret_cast<char*>(-1)) {
+                    shminfo_.readOnly = False;
+                    ximg_->data = shminfo_.shmaddr;
+                    XShmAttach(display_, &shminfo_);
+                    mapped_ = reinterpret_cast<uint8_t*>(shminfo_.shmaddr);
+                    use_shm_ = true;
+                } else {
+                    XDestroyImage(ximg_);
+                    ximg_ = nullptr;
+                }
+            } else {
+                XDestroyImage(ximg_);
+                ximg_ = nullptr;
+            }
+        }
     }
-    ximg_->bits_per_pixel = 32;
-    mapped_ = static_cast<uint8_t*>(std::calloc(1, stride_ * height_));
-    ximg_->data = reinterpret_cast<char*>(mapped_);
+
+    if (!ximg_) {
+        g_logger->log("[X11] MIT-SHM unavailable for main window — falling back to XPutImage");
+        // Fallback to plain XImage
+        ximg_ = XCreateImage(display_, visual, depth, ZPixmap, 0,
+                             nullptr, width_, height_, 32, stride_);
+        if (!ximg_) {
+            XDestroyWindow(display_, window_);
+            XCloseDisplay(display_);
+            return false;
+        }
+        ximg_->bits_per_pixel = 32;
+        mapped_ = static_cast<uint8_t*>(std::calloc(1, stride_ * height_));
+        ximg_->data = reinterpret_cast<char*>(mapped_);
+    }
 
     gc_ = XCreateGC(display_, window_, 0, nullptr);
 
@@ -288,7 +358,12 @@ void Framebuffer::present() {
     if (backend_ == Backend::x11 && ximg_) {
         int dx = (screen_w_ - width_) / 2;
         int dy = (screen_h_ - height_) / 2;
-        XPutImage(display_, window_, gc_, ximg_, 0, 0, dx, dy, width_, height_);
+        if (use_shm_) {
+            XShmPutImage(display_, window_, gc_, ximg_, 0, 0, dx, dy,
+                         width_, height_, False);
+        } else {
+            XPutImage(display_, window_, gc_, ximg_, 0, 0, dx, dy, width_, height_);
+        }
         XFlush(display_);
     }
 }
@@ -358,8 +433,17 @@ uint32_t* Framebuffer::blackout_pixels(int idx) {
 
 void Framebuffer::present_blackout(int idx) {
     auto& bw = blackout_wins_[idx];
-    if (backend_ == Backend::x11)
-        XPutImage(display_, bw.window, bw.gc, bw.ximg, 0, 0, 0, 0, bw.width, bw.height);
+    if (backend_ == Backend::x11 && bw.ximg) {
+        if (bw.shminfo.shmaddr) {
+            // Copy buffer contents to SHM segment if it was allocated
+            std::memcpy(bw.shminfo.shmaddr, bw.buffer, bw.width * bw.height * 4);
+            XShmPutImage(display_, bw.window, bw.gc, bw.ximg, 0, 0, 0, 0,
+                         bw.width, bw.height, False);
+        } else {
+            XPutImage(display_, bw.window, bw.gc, bw.ximg, 0, 0, 0, 0,
+                      bw.width, bw.height);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -371,20 +455,39 @@ void Framebuffer::cleanup() {
         XUngrabKeyboard(display_, CurrentTime);
         for (auto& bw : blackout_wins_) {
             if (bw.ximg) {
+                if (bw.shminfo.shmaddr) {
+                    XShmDetach(display_, &bw.shminfo);
+                }
                 bw.ximg->data = nullptr;
                 XDestroyImage(bw.ximg);
             }
+            if (bw.shminfo.shmaddr && bw.shminfo.shmaddr != reinterpret_cast<char*>(-1))
+                shmdt(bw.shminfo.shmaddr);
+            if (bw.shminfo.shmid >= 0)
+                shmctl(bw.shminfo.shmid, IPC_RMID, nullptr);
             std::free(bw.buffer);
             if (bw.gc) XFreeGC(display_, bw.gc);
             XDestroyWindow(display_, bw.window);
+            bw = BlackoutWin{}; // clear handles
         }
         blackout_wins_.clear();
         if (ximg_) {
-            ximg_->data = nullptr;
-            XDestroyImage(ximg_);
+            if (use_shm_) {
+                XShmDetach(display_, &shminfo_);
+                ximg_->data = nullptr;
+                XDestroyImage(ximg_);
+                mapped_ = nullptr;
+                if (shminfo_.shmaddr && shminfo_.shmaddr != reinterpret_cast<char*>(-1))
+                    shmdt(shminfo_.shmaddr);
+                if (shminfo_.shmid >= 0)
+                    shmctl(shminfo_.shmid, IPC_RMID, nullptr);
+            } else {
+                ximg_->data = nullptr;
+                XDestroyImage(ximg_);
+                std::free(mapped_);
+                mapped_ = nullptr;
+            }
         }
-        std::free(mapped_);
-        mapped_ = nullptr;
         if (gc_)   XFreeGC(display_, gc_);
         if (window_) XDestroyWindow(display_, window_);
         if (display_) XCloseDisplay(display_);

@@ -8,6 +8,7 @@ class Raycaster;
 
 class Drawer {
     std::vector<uint32_t> row_buf_;
+    std::vector<int> x_lut_;
 public:
     void frame(Framebuffer& fb, Raycaster& raycaster,
                float wall_height,
