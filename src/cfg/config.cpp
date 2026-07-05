@@ -3,15 +3,10 @@
 #include <charconv>
 #include <cstring>
 #include <fstream>
-#include <map>
 #include <string>
+#include <string_view>
 
 Config cfg;
-
-struct Config::Impl {
-    std::map<std::string, std::string> map;
-    mutable std::map<std::string, int> int_cache;
-};
 
 static std::string trim(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
@@ -20,62 +15,97 @@ static std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
-Config::Config(const char* file_path, int argc, char* argv[])
-    : self_(std::make_unique<Impl>()) {
-    std::ifstream f(file_path);
-    if (f.is_open()) {
-        std::string line;
-        while (std::getline(f, line)) {
-            line = trim(line);
-            if (line.empty() || line[0] == '#') continue;
-            size_t eq = line.find('=');
-            if (eq == std::string::npos) continue;
-            std::string key = trim(line.substr(0, eq));
-            std::string val = trim(line.substr(eq + 1));
-            if (!key.empty()) self_->map[key] = val;
-        }
-    }
+Config::Config(const char* file_path, int argc, char* argv[]) {
+    parse_file(file_path);
+    parse_args(argc, argv);
+}
 
+static bool str_to_bool(std::string_view s) {
+    return !(s == "0" || s == "false" || s == "False" || s == "FALSE");
+}
+
+void Config::parse_file(const char* file_path) {
+    std::ifstream f(file_path);
+    if (!f.is_open()) return;
+
+    std::string line;
+    while (std::getline(f, line)) {
+        line = trim(line);
+        if (line.empty() || line[0] == '#') continue;
+        size_t eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = trim(line.substr(0, eq));
+        std::string val = trim(line.substr(eq + 1));
+        if (key.empty()) continue;
+
+        if (key == "debug")                    debug_ = str_to_bool(val);
+        else if (key == "minimap")             minimap_ = str_to_bool(val);
+        else if (key == "textured_floor")      textured_floor_ = str_to_bool(val);
+        else if (key == "ai_speed") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                ai_speed_ = v;
+        }
+        else if (key == "floor_tile_scale") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                floor_tile_scale_ = v;
+        }
+        else if (key == "ceiling_tile_scale") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                ceiling_tile_scale_ = v;
+        }
+        else if (key == "maze_width") {
+            int v = 0;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                maze_width_ = v;
+        }
+        else if (key == "maze_height") {
+            int v = 0;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                maze_height_ = v;
+        }
+        else if (key == "wall_grow_time") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                wall_grow_time_ = v;
+        }
+        else if (key == "deep_idle_time") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                deep_idle_time_ = v;
+        }
+        else if (key == "target_fps") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                target_fps_ = v;
+        }
+        else if (key == "idle_fps") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                idle_fps_ = v;
+        }
+        else if (key == "restart_delay") {
+            float v = 0.0f;
+            if (std::from_chars(val.data(), val.data() + val.size(), v).ec == std::errc{})
+                restart_delay_ = v;
+        }
+        else if (key == "quick_fail")         quick_fail_ = str_to_bool(val);
+        else if (key == "effect")             effect_ = val;
+    }
+}
+
+void Config::parse_args(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--debug") == 0)
-            set_int("debug", 1);
-        if (std::strcmp(argv[i], "--quick-fail") == 0)
-            set_int("quick_fail", 1);
+            debug_ = true;
+        else if (std::strcmp(argv[i], "--quick-fail") == 0)
+            quick_fail_ = true;
+        else if (std::strcmp(argv[i], "--effect") == 0) {
+            if (i + 1 < argc) {
+                effect_ = argv[++i];
+            }
+        }
     }
-}
-
-Config::~Config() = default;
-
-Config::Config(Config&& other) noexcept = default;
-Config& Config::operator=(Config&& other) noexcept = default;
-
-int Config::get_int(const std::string& key, int def) const {
-    if (!self_) return def;
-    auto ic = self_->int_cache.find(key);
-    if (ic != self_->int_cache.end()) return ic->second;
-    auto it = self_->map.find(key);
-    if (it != self_->map.end()) {
-        int v = 0;
-        std::from_chars(it->second.data(), it->second.data() + it->second.size(), v);
-        self_->int_cache[key] = v;
-        return v;
-    }
-    return def;
-}
-
-float Config::get_float(const std::string& key, float def) const {
-    if (!self_) return def;
-    auto it = self_->map.find(key);
-    if (it != self_->map.end()) {
-        float v = 0.0f;
-        std::from_chars(it->second.data(), it->second.data() + it->second.size(), v);
-        return v;
-    }
-    return def;
-}
-
-void Config::set_int(const std::string& key, int value) {
-    if (!self_) self_ = std::make_unique<Impl>();
-    self_->map[key] = std::to_string(value);
-    self_->int_cache[key] = value;
 }

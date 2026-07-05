@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <random>
+#include <string_view>
 
 #include <unistd.h>
 
@@ -73,15 +74,30 @@ void World::run() {
 
     bool running = true;
 
-    // A screensaver runs on secondary monitors at all times — pick one
-    // of the available effects at random each launch.
+    // A screensaver runs on secondary monitors at all times — selected
+    // via config file or --effect CLI flag, or random if unspecified.
     {
-        std::mt19937 effect_rng{std::random_device{}()};
-        int choice = std::uniform_int_distribution<int>(0, 2)(effect_rng);
-        switch (choice) {
-            case 0:  fx_mgr_.set_effect(std::make_unique<PipeEffect>()); break;
-            case 1:  fx_mgr_.set_effect(std::make_unique<FishAquariumEffect>()); break;
-            default: fx_mgr_.set_effect(std::make_unique<FlowerMagnifierEffect>(*texman_)); break;
+        std::string_view fx = cfg_.effect();
+        if (!fx.empty()) {
+            if (fx == "none") {
+            } else if (fx == "pipe") {
+                fx_mgr_.set_effect(std::make_unique<PipeEffect>());
+            } else if (fx == "fish") {
+                fx_mgr_.set_effect(std::make_unique<FishAquariumEffect>());
+            } else if (fx == "flower") {
+                fx_mgr_.set_effect(std::make_unique<FlowerMagnifierEffect>(*texman_));
+            } else {
+                g_logger->log("[CONFIG] unknown --effect '%s', ignoring (showing random or none)",
+                              std::string(fx).c_str());
+            }
+        } else {
+            std::mt19937 effect_rng{std::random_device{}()};
+            int choice = std::uniform_int_distribution<int>(0, 2)(effect_rng);
+            switch (choice) {
+                case 0:  fx_mgr_.set_effect(std::make_unique<PipeEffect>()); break;
+                case 1:  fx_mgr_.set_effect(std::make_unique<FishAquariumEffect>()); break;
+                default: fx_mgr_.set_effect(std::make_unique<FlowerMagnifierEffect>(*texman_)); break;
+            }
         }
     }
 

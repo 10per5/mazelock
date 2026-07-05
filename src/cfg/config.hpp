@@ -1,39 +1,53 @@
 #pragma once
 
-#include <memory>
 #include <string>
+#include <string_view>
 
 class Config {
 public:
     Config() = default;
     Config(const char* file_path, int argc, char* argv[]);
-    Config(Config&& other) noexcept;
-    Config& operator=(Config&& other) noexcept;
-    ~Config();
+    Config(const Config&) = delete;
+    Config& operator=(const Config&) = delete;
+    Config(Config&&) noexcept = default;
+    Config& operator=(Config&&) noexcept = default;
+    ~Config() = default;
 
-    int get_int(const std::string& key, int def) const;
-    float get_float(const std::string& key, float def) const;
-    void set_int(const std::string& key, int value);
-
-    // Named accessors for well-known keys
-    bool   debug_mode()       const { return get_int("debug", 0) != 0; }
-    bool   minimap()          const { return get_int("minimap", 1) != 0; }
-    bool   textured_floor()   const { return get_int("textured_floor", 1) != 0; }
-    float  ai_speed()         const { return get_float("ai_speed", 2.0f); }
-    float  floor_tile_scale() const { return get_float("floor_tile_scale", 4.0f); }
-    float  ceiling_tile_scale() const { return get_float("ceiling_tile_scale", 4.0f); }
-    int    maze_width()       const { return get_int("maze_width", 15); }
-    int    maze_height()      const { return get_int("maze_height", 15); }
-    float  wall_grow_time()   const { return get_float("wall_grow_time", 1.0f); }
-    float  deep_idle_time()   const { return get_float("deep_idle_time", 300.0f); }
-    float  target_fps()       const { return get_float("target_fps", 30.0f); }
-    float  idle_fps()         const { return get_float("idle_fps", 15.0f); }
-    float  restart_delay()    const { return get_float("restart_delay", 4.0f); }
-    bool   quick_fail()       const { return get_int("quick_fail", 0) != 0; }
+    bool        debug_mode()        const { return debug_; }
+    bool        minimap()           const { return minimap_; }
+    bool        textured_floor()    const { return textured_floor_; }
+    float       ai_speed()          const { return ai_speed_; }
+    float       floor_tile_scale()  const { return floor_tile_scale_; }
+    float       ceiling_tile_scale()const { return ceiling_tile_scale_; }
+    int         maze_width()        const { return maze_width_; }
+    int         maze_height()       const { return maze_height_; }
+    float       wall_grow_time()    const { return wall_grow_time_; }
+    float       deep_idle_time()    const { return deep_idle_time_; }
+    float       target_fps()        const { return target_fps_; }
+    float       idle_fps()          const { return idle_fps_; }
+    float       restart_delay()     const { return restart_delay_; }
+    bool        quick_fail()        const { return quick_fail_; }
+    std::string_view effect()       const { return effect_; }
 
 private:
-    struct Impl;
-    std::unique_ptr<Impl> self_;
+    void parse_file(const char* file_path);
+    void parse_args(int argc, char* argv[]);
+
+    bool   debug_ = false;
+    bool   minimap_ = true;
+    bool   textured_floor_ = true;
+    float  ai_speed_ = 2.0f;
+    float  floor_tile_scale_ = 4.0f;
+    float  ceiling_tile_scale_ = 4.0f;
+    int    maze_width_ = 15;
+    int    maze_height_ = 15;
+    float  wall_grow_time_ = 1.0f;
+    float  deep_idle_time_ = 300.0f;
+    float  target_fps_ = 30.0f;
+    float  idle_fps_ = 15.0f;
+    float  restart_delay_ = 4.0f;
+    bool   quick_fail_ = false;
+    std::string effect_;
 };
 
 extern Config cfg;
