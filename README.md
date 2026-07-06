@@ -1,30 +1,30 @@
 # mazelock
 
-Linux fullscreen maze game / screen locker. Navigate a 3D ray-cast maze with arrow keys. Press a key to lock — the maze darkens, a password overlay appears, and a pipe screensaver runs on secondary monitors. Unlock with hardcoded password (for now).
+Linux fullscreen maze game / screen locker. Navigate a 3D ray-cast maze with arrow keys. Password is currently hardcoded [password\_overlay.hpp](https://github.com/10per5/mazelock/blob/main/src/security/password_overlay.hpp#L11), or with premake5 param.
 
 ## Build
 
-Use `predep` or `premake5 gmake2` to build the project. It's quite straightforward.
+Use `predep` or `premake5 gmake2` to build the project.
 
 ## Controls
 
-| Key                     | Action                             |
-| ----------------------- | ---------------------------------- |
-| Arrow keys              | Move / turn                        |
-| Shift                   | Sprint (3x speed)                  |
-| A–Z, 0–9                | Lock screen (during play)          |
-| Type `world90s` + Enter | Unlock                             |
-| Escape                  | Cancel lock                        |
-| F11                     | Toggle auto-walk (right-hand rule) |
-| F11 x3                  | Pathfind to finish (BFS)           |
-| Ctrl+Q (debug)          | Quit                               |
+| Key                       | Action                             |
+| ------------------------- | ---------------------------------- |
+| Arrow keys                | Move / turn                        |
+| Tab                       | Sprint (3x speed)                  |
+| Escape                    | Toggle lock screen                 |
+| F11 / Arrow Keys          | Toggle auto-walk (right-hand rule) |
+| F12 (`--debug` mode only) | Quit                               |
 
 ## Dependencies
 
-- X11, Xinerama (primary backend)
-- libdrm (fallback)
-- Linux fbdev (last resort)
-- libpng (optional, `--usepng`)
+* X11, Xinerama (primary backend)
+
+* libdrm (fallback)
+
+* Linux fbdev (last resort)
+
+* libpng (optional, `--usepng`)
 
 ## License
 
