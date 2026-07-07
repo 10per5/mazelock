@@ -4,7 +4,7 @@
 #include "graphics/texture_manager.hpp"
 #include "security/password_overlay.hpp"
 
-static constexpr int EV_PER_PASS = 42;
+static constexpr int EV_PER_PASS = 10; // 3 cracks + 6 half recolor + 1 full recolor
 static constexpr int NUM_PASSES = 5;
 static const uint32_t PASS_COLORS[NUM_PASSES] = {
     0xFF000000, // black
@@ -16,17 +16,6 @@ static const uint32_t PASS_COLORS[NUM_PASSES] = {
 
 HeartDisplay::HeartDisplay(PasswordOverlay& overlay, TextureManager& texman)
     : overlay_(overlay), texman_(texman) {}
-
-static int quadrant(int tx, int ty, int mid) {
-    if (tx > mid) {
-        if (ty < mid) return 1;
-        if (ty > mid) return 3;
-    } else if (tx < mid) {
-        if (ty < mid) return 0;
-        if (ty > mid) return 2;
-    }
-    return -1;
-}
 
 void HeartDisplay::draw(Framebuffer& fb) const {
     const auto& tex = texman_.heart();
@@ -52,18 +41,23 @@ void HeartDisplay::draw(Framebuffer& fb) const {
 
     int mid = tw / 2;
 
-    static const int qcx[] = {4, 12, 4, 12};
-    static const int qcy[] = {4, 4, 12, 12};
+    // thunder-like zigzag: crack and half-edge jag 1px at random-seeming rows
+    static const int8_t zigzag[8] = {0, 0, -1, 0, 1, 0, -1, 0};
 
     for (int hi = 0; hi < 3; ++hi) {
         int hx = sx + hi * (hw + gap);
-        int wh_v_ev = (2 - hi) * 2;
-        int wh_h_ev = wh_v_ev + 1;
-        int ph2_base = 6 + (2 - hi) * 12;
+
+        // ba=1-3: cracks (rightmost → middle → leftmost)
+        int crack_ev = 2 - hi; // hi=2→0, hi=1→1, hi=0→2
+
+        // ba=10: full recolor, remove cracks
+        bool fully_recolored = (ba >= 10);
 
         for (int py = 0; py < hh; ++py) {
             int ty = py / scale;
             if (ty >= th) continue;
+
+            int dz = zigzag[ty & 7];
 
             for (int px = 0; px < hw; ++px) {
                 int tx = px / scale;
@@ -73,28 +67,31 @@ void HeartDisplay::draw(Framebuffer& fb) const {
                 if ((orig & 0xFF000000) == 0) continue;
 
                 uint32_t a = orig & 0xFF000000;
-                int qi = quadrant(tx, ty, mid);
+
+                if (fully_recolored) {
+                    uint32_t rgb = PASS_COLORS[pass] & 0x00FFFFFF;
+                    fb.put_pixel(hx + px, sy + py, a | rgb);
+                    continue;
+                }
+
                 bool on_crack = false;
+                if (ba > crack_ev && tx == mid + dz) on_crack = true;
 
-                if (qi >= 0) {
-                    int sub_v_ev = ph2_base + 3 * qi;
-                    int sub_h_ev = sub_v_ev + 1;
-                    int paint_ev = sub_v_ev + 2;
+                if (!on_crack) {
+                    // ba=4-9: half-heart recolor, right-to-left, right-half first
+                    int half_ev = -1;
+                    if (hi == 2)      half_ev = (tx > mid + dz) ? 3 : 4;
+                    else if (hi == 1) half_ev = (tx > mid + dz) ? 5 : 6;
+                    else              half_ev = (tx > mid + dz) ? 7 : 8;
 
-                    if (ba > paint_ev) {
+                    if (half_ev >= 0 && ba > half_ev) {
                         uint32_t rgb = PASS_COLORS[pass] & 0x00FFFFFF;
                         fb.put_pixel(hx + px, sy + py, a | rgb);
                         continue;
                     }
-
-                    if (ba > sub_v_ev && tx == qcx[qi]) on_crack = true;
-                    if (ba > sub_h_ev && ty == qcy[qi]) on_crack = true;
                 }
 
-                if (ba > wh_v_ev && tx == mid) on_crack = true;
-                if (ba > wh_h_ev && ty == mid) on_crack = true;
-
-                if (on_crack) continue; // transparent — shows background through
+                if (on_crack) continue;
 
                 uint32_t c;
                 if (pass > 0)

@@ -42,6 +42,7 @@ public:
     void reset_bad_attempts() { bad_attempts_ = 0; }
 
     void draw_dots(uint32_t* buffer, int buf_w, int buf_h) const;
+    void apply_overlay(uint32_t* buffer, int width, int height) const;
 
 private:
     State state_ = State::INACTIVE;

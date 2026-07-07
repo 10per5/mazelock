@@ -58,7 +58,6 @@ void EffectManager::render(Framebuffer& fb) {
         } else {
             effect_->render(buf, w, h);
         }
-        fb.present_blackout(static_cast<int>(i));
 
         last_buf = buf;
         last_w = w;

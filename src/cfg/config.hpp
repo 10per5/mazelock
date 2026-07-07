@@ -13,6 +13,8 @@ public:
     Config& operator=(Config&&) noexcept = default;
     ~Config() = default;
 
+    void print_help() const;
+
     bool        debug_mode()        const { return debug_; }
     bool        minimap()           const { return minimap_; }
     bool        textured_floor()    const { return textured_floor_; }
@@ -27,6 +29,8 @@ public:
     float       idle_fps()          const { return idle_fps_; }
     float       restart_delay()     const { return restart_delay_; }
     bool        quick_fail()        const { return quick_fail_; }
+    bool        no_password()       const { return no_password_; }
+    bool        help_requested()    const { return help_; }
     std::string_view effect()       const { return effect_; }
 
 private:
@@ -47,6 +51,8 @@ private:
     float  idle_fps_ = 15.0f;
     float  restart_delay_ = 4.0f;
     bool   quick_fail_ = false;
+    bool   no_password_ = false;
+    bool   help_ = false;
     std::string effect_;
 };
 

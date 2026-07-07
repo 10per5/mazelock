@@ -26,14 +26,14 @@ void RenderManager::render(GameStateMachine::State state, float wall_height) {
                              wall_height);
 
     if (state == GameStateMachine::State::LOCKED)
-        overlay_.draw_dots(cb.data(), rc_.render_width(), rc_.render_height());
+        overlay_.apply_overlay(cb.data(), rc_.render_width(), rc_.render_height());
 
     drawer_.frame(fb_, rc_, wall_height,
                   state == GameStateMachine::State::LOCKED
-                      ? overlay_.overlay_color()
+                      ? 0u
                       : entities_.screen_overlay_color(),
                   state == GameStateMachine::State::LOCKED
-                      ? overlay_.overlay_alpha()
+                      ? 0.0f
                       : entities_.screen_overlay_alpha());
 
     if (state != GameStateMachine::State::LOCKED)

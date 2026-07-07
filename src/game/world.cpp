@@ -116,15 +116,22 @@ void World::run() {
                 auto st = state_machine_.state();
                 if (st == GameStateMachine::State::RUNNING &&
                     ((press_ks >= XK_space && press_ks <= XK_asciitilde) || press_ks == XK_Escape)) {
+                    if (cfg_.no_password()) {
+                        running = false;
+                        break;
+                    }
                     state_machine_.lock();
+                    lock_escape_cooldown_ = 30; // ~500ms at 60fps
                     pw_overlay_->activate();
                     if (press_ks != XK_Escape)
                         pw_overlay_->handle_key(press_ks);
                     player_->enable_autowalk();
-                    input_mgr_.reset_state();
                     idle_start = now;
                 } else if (st == GameStateMachine::State::LOCKED) {
-                    pw_overlay_->handle_key(press_ks);
+                    // Debounce Escape via frame cooldown — key repeat
+                    // fires ~30ms apart, so ignore for ~500ms
+                    if (press_ks != XK_Escape || lock_escape_cooldown_ <= 0)
+                        pw_overlay_->handle_key(press_ks);
                     idle_start = now;
                 }
             }
@@ -254,6 +261,21 @@ void World::run() {
         renderer_->render(state_machine_.state(), state_machine_.wall_height());
         hearts_->draw(*fb_);
         fb_->present();
+
+        // ---- Blackout windows: present with overlay if LOCKED ----
+        for (size_t i = 0; i < fb_->num_blackouts(); ++i) {
+            auto* buf = fb_->blackout_pixels(static_cast<int>(i));
+            int w = fb_->blackout_width(static_cast<int>(i));
+            int h = fb_->blackout_height(static_cast<int>(i));
+            if (buf && w > 0 && h > 0) {
+                if (state_machine_.state() == GameStateMachine::State::LOCKED)
+                    pw_overlay_->apply_overlay(buf, w, h);
+                fb_->present_blackout(static_cast<int>(i));
+            }
+        }
+
+        if (lock_escape_cooldown_ > 0)
+            --lock_escape_cooldown_;
     }
 
     fb_->blackout_other_windows(false);

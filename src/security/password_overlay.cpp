@@ -178,22 +178,48 @@ float PasswordOverlay::overlay_alpha() const {
     }
 }
 
+void PasswordOverlay::apply_overlay(uint32_t* buffer, int width, int height) const {
+    if (!buffer || width <= 0 || height <= 0)
+        return;
+
+    int oa = static_cast<int>(overlay_alpha() * 255);
+    if (oa > 0) {
+        int or_ = (overlay_color() >> 16) & 0xFF;
+        int og = (overlay_color() >> 8)  & 0xFF;
+        int ob = (overlay_color()      ) & 0xFF;
+        for (int i = 0, n = width * height; i < n; ++i) {
+            uint32_t c = buffer[i];
+            int rr = ((c >> 16) & 0xFF) * (255 - oa) / 255 + or_ * oa / 255;
+            int gg = ((c >> 8)  & 0xFF) * (255 - oa) / 255 + og * oa / 255;
+            int bb = (c         & 0xFF) * (255 - oa) / 255 + ob * oa / 255;
+            buffer[i] = 0xFF000000 | (rr << 16) | (gg << 8) | bb;
+        }
+    }
+    draw_dots(buffer, width, height);
+}
+
 void PasswordOverlay::draw_dots(uint32_t* buffer, int buf_w, int buf_h) const {
     if (buffer_.empty())
         return;
 
-    static constexpr int DOT_RADIUS = 3;
-    static constexpr int DOT_SPACING = 10;
+    // Scale dots to match visual size across different render resolutions
+    static constexpr int REF_W = 320;
+    static constexpr int REF_H = 200;
+    float sx = static_cast<float>(buf_w) / REF_W;
+    float sy = static_cast<float>(buf_h) / REF_H;
+    float s = std::min(sx, sy);
 
-    int dot_y = buf_h - 14;
-    int total_w = static_cast<int>(buffer_.size()) * DOT_SPACING;
+    int dot_radius = std::max(1, static_cast<int>(3.0f * s));
+    int dot_spacing = std::max(1, static_cast<int>(10.0f * s));
+    int dot_y = buf_h - static_cast<int>(14.0f * sy);
+    int total_w = static_cast<int>(buffer_.size()) * dot_spacing;
     int start_x = (buf_w - total_w) / 2;
 
     for (size_t i = 0; i < buffer_.size(); ++i) {
-        int cx = start_x + static_cast<int>(i) * DOT_SPACING + DOT_SPACING / 2;
-        for (int dy = -DOT_RADIUS; dy <= DOT_RADIUS; ++dy) {
-            for (int dx = -DOT_RADIUS; dx <= DOT_RADIUS; ++dx) {
-                if (dx * dx + dy * dy <= DOT_RADIUS * DOT_RADIUS + 1) {
+        int cx = start_x + static_cast<int>(i) * dot_spacing + dot_spacing / 2;
+        for (int dy = -dot_radius; dy <= dot_radius; ++dy) {
+            for (int dx = -dot_radius; dx <= dot_radius; ++dx) {
+                if (dx * dx + dy * dy <= dot_radius * dot_radius + 1) {
                     int px = cx + dx;
                     int py = dot_y + dy;
                     if (px >= 0 && px < buf_w && py >= 0 && py < buf_h) {

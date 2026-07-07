@@ -44,4 +44,5 @@ private:
     std::unique_ptr<RenderManager> renderer_;
     std::unique_ptr<HeartDisplay> hearts_;
     bool god_mode_ = false;
+    int lock_escape_cooldown_ = 0;
 };

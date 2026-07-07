@@ -3,6 +3,7 @@
 #include <charconv>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <string_view>
 
@@ -92,6 +93,7 @@ void Config::parse_file(const char* file_path) {
                 restart_delay_ = v;
         }
         else if (key == "quick_fail")         quick_fail_ = str_to_bool(val);
+        else if (key == "no_password")        no_password_ = str_to_bool(val);
         else if (key == "effect")             effect_ = val;
     }
 }
@@ -102,10 +104,31 @@ void Config::parse_args(int argc, char* argv[]) {
             debug_ = true;
         else if (std::strcmp(argv[i], "--quick-fail") == 0)
             quick_fail_ = true;
+        else if (std::strcmp(argv[i], "--no-password") == 0)
+            no_password_ = true;
+        else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0)
+            help_ = true;
         else if (std::strcmp(argv[i], "--effect") == 0) {
             if (i + 1 < argc) {
                 effect_ = argv[++i];
             }
         }
     }
+}
+
+void Config::print_help() const {
+    std::println(std::cout, "Usage: {} [options]", "screensaver");
+    std::println(std::cout);
+    std::println(std::cout, "Options:");
+    std::println(std::cout, "  --debug          Enable debug output");
+    std::println(std::cout, "  --quick-fail     Skip password wait on failed attempt");
+    std::println(std::cout, "  --no-password    Skip password prompt (any key unlocks)");
+    std::println(std::cout, "  --effect <name>  Screensaver effect: none, pipe, fish, flower");
+    std::println(std::cout, "  --help, -h       Show this help message");
+    std::println(std::cout);
+    std::println(std::cout, "Config file: config.txt (key=value pairs)");
+    std::println(std::cout, "  debug, minimap, textured_floor, ai_speed, floor_tile_scale,");
+    std::println(std::cout, "  ceiling_tile_scale, maze_width, maze_height, wall_grow_time,");
+    std::println(std::cout, "  deep_idle_time, target_fps, idle_fps, restart_delay,");
+    std::println(std::cout, "  quick_fail, no_password, effect");
 }

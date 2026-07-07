@@ -31,6 +31,9 @@ private:
     static int  grid_x(Dir d);
     static int  grid_y(Dir d);
 
+    int  longest_run(int gx, int gy, Dir d) const;
+    Dir  best_dir(int gx, int gy) const;
+
     void grow();
     void seed_chain();
     void redraw_cell(int gx, int gy);

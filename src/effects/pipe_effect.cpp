@@ -107,6 +107,35 @@ bool PipeEffect::occupied(int gx, int gy, Dir d) const {
 
 static constexpr uint32_t UNDRAW_COLOR = 0xFFFFAA00;
 
+int PipeEffect::longest_run(int gx, int gy, Dir d) const {
+    int count = 0;
+    int x = gx, y = gy;
+    while (true) {
+        x += grid_x(d);
+        y += grid_y(d);
+        if (x < 0 || x >= grid_w_ || y < 0 || y >= grid_h_)
+            break;
+        if (erased_[y * grid_w_ + x])
+            break;
+        ++count;
+    }
+    return count;
+}
+
+PipeEffect::Dir PipeEffect::best_dir(int gx, int gy) const {
+    Dir best = Dir::N;
+    int best_len = -1;
+    for (int i = 0; i < 4; ++i) {
+        Dir d = static_cast<Dir>(i);
+        int len = longest_run(gx, gy, d);
+        if (len > best_len) {
+            best_len = len;
+            best = d;
+        }
+    }
+    return best;
+}
+
 void PipeEffect::grow() {
     if (phase_ == UNDRAW) {
         int total = grid_w_ * grid_h_;
@@ -133,7 +162,7 @@ void PipeEffect::grow() {
 
             int gx = ci % grid_w_;
             int gy = ci / grid_w_;
-            Dir d = static_cast<Dir>(rand_int(0, 3));
+            Dir d = best_dir(gx, gy);
 
             // Clear existing draw data at this cell
             for (auto it = segments_.begin(); it != segments_.end(); ) {
@@ -154,9 +183,10 @@ void PipeEffect::grow() {
             return;
         }
 
-        // Extend the active undraw pipe in a straight line
-        int nx = undraw_gx_ + grid_x(undraw_dir_);
-        int ny = undraw_gy_ + grid_y(undraw_dir_);
+        // Choose the best direction from the current tip
+        Dir d = best_dir(undraw_gx_, undraw_gy_);
+        int nx = undraw_gx_ + grid_x(d);
+        int ny = undraw_gy_ + grid_y(d);
 
         // Stop if we hit the edge or an already-erased cell
         if (nx < 0 || nx >= grid_w_ || ny < 0 || ny >= grid_h_ || erased_[ny * grid_w_ + nx]) {
@@ -166,7 +196,14 @@ void PipeEffect::grow() {
             return;
         }
 
-        // Enter cell — remove old draw data, mark erased
+        // Direction change — clean up the old trail (turn black) before starting a new one
+        if (d != undraw_dir_) {
+            auto done = std::move(undraw_segments_);
+            for (const auto& seg : done)
+                redraw_cell(seg.gx, seg.gy);
+        }
+
+        // Remove old draw data at the new cell, mark erased
         for (auto it = segments_.begin(); it != segments_.end(); ) {
             if (it->gx == nx && it->gy == ny)
                 it = segments_.erase(it);
@@ -177,10 +214,11 @@ void PipeEffect::grow() {
         erased_[ny * grid_w_ + nx] = 1;
         ++erased_count_;
 
-        undraw_segments_.push_back({nx, ny, undraw_dir_, UNDRAW_COLOR});
-        redraw_cell(nx, ny);
         undraw_gx_ = nx;
         undraw_gy_ = ny;
+        undraw_dir_ = d;
+        undraw_segments_.push_back({nx, ny, d, UNDRAW_COLOR});
+        redraw_cell(nx, ny);
         return;
     }
 
