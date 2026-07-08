@@ -8,6 +8,8 @@ type = "premake5"
 outputs = ["root://bin/mazelock"]
 clean = true
 clean_paths = ["root://obj"]
+# config = "debug"
+# strip = false
 
 [install]
 depends = ["build"]

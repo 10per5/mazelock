@@ -13,7 +13,7 @@ public:
     Config& operator=(Config&&) noexcept = default;
     ~Config() = default;
 
-    void print_help() const;
+    void print_help() const __attribute__((cold));
 
     bool        debug_mode()        const { return debug_; }
     bool        minimap()           const { return minimap_; }

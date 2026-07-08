@@ -24,6 +24,7 @@ defines({ "NDEBUG" })
 
 filter("configurations:debug")
 optimize("Debug")
+linkoptions({ "-Wl,-Map=bin/mazelock.map" })
 symbols("On")
 
 filter("system:linux")
