@@ -41,6 +41,9 @@ public:
     const Camera& camera() const { return camera_; }
 
 private:
+    struct SortEntry { const Entity* e; float dist_sq; };
+    mutable std::vector<SortEntry> sorted_entries_;
+
     std::vector<std::unique_ptr<Entity>> owned_;
     std::vector<Entity*> entities_;
     const Texture* rat_sprite_ = nullptr;

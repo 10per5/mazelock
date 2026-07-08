@@ -130,7 +130,7 @@ void AutoWalkStrategy::plan_next_step(const MazeGenerator& maze) {
         pause_ = PAUSE_FRAMES;
     }
 
-    if (std::uniform_int_distribution<int>(0, 19)(rng_) == 0) {
+    if (random_explore_dist_(rng_) == 0) {
         if (!maze.is_wall(walker_.cell_x(), walker_.cell_y(), left_dir)) {
             next_dir = left_dir;
         } else if (!maze.is_wall(walker_.cell_x(), walker_.cell_y(), right_dir)) {

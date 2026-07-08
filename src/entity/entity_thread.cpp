@@ -24,8 +24,9 @@ void EntityThread::set_sprites(const TextureManager& tm) {
 }
 
 void EntityThread::init(MazeGenerator& maze) {
-    owned_.clear();
+    // Clear raw pointers BEFORE destroying objects to close dangling-pointer window
     entities_.clear();
+    owned_.clear();
 
     for (int y = 0; y < maze.height(); ++y) {
         for (int x = 0; x < maze.width(); ++x) {
@@ -95,25 +96,20 @@ bool EntityThread::consume_coin_at(int x, int y, MazeGenerator& maze) {
 void EntityThread::render_sprites(uint32_t* color_buffer, const float* depth_buffer,
                                    const Camera& camera,
                                    int render_w, int render_h, float wall_height) const {
-    struct Entry {
-        const Entity* e;
-        float dist_sq;
-    };
-
-    std::vector<Entry> sorted;
     float cx = camera.pos_x();
     float cy = camera.pos_y();
 
+    sorted_entries_.clear();
     for (const auto& e : owned_) {
         float dx = e->world_x() - cx;
         float dy = e->world_y() - cy;
-        sorted.push_back({e.get(), dx * dx + dy * dy});
+        sorted_entries_.push_back({e.get(), dx * dx + dy * dy});
     }
 
-    std::sort(sorted.begin(), sorted.end(),
-              [](const Entry& a, const Entry& b) { return a.dist_sq > b.dist_sq; });
+    std::sort(sorted_entries_.begin(), sorted_entries_.end(),
+              [](const SortEntry& a, const SortEntry& b) { return a.dist_sq > b.dist_sq; });
 
-    for (const auto& entry : sorted)
+    for (const auto& entry : sorted_entries_)
         entry.e->render(color_buffer, depth_buffer, camera,
                         render_w, render_h, wall_height);
 }

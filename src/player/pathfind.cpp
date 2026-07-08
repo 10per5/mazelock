@@ -25,9 +25,9 @@ std::vector<std::pair<int,int>> pathfind(
     static constexpr int dx[4] = { 0, 1, 0, -1 };
     static constexpr int dy[4] = {-1, 0, 1,  0 };
 
-    // Simple open list — linear scan is fine for small mazes
+    // Binary heap for open list — avoids O(n) linear scan
     std::vector<Node> nodes(w * h);
-    std::vector<int> open;
+    std::vector<std::pair<float,int>> open_heap;
 
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x)
@@ -38,24 +38,19 @@ std::vector<std::pair<int,int>> pathfind(
     start.f = static_cast<float>(std::abs(sx - ex) + std::abs(sy - ey));
     start.px = -1;
     start.py = -1;
-    open.push_back(idx(sx, sy));
+    open_heap.emplace_back(start.f, idx(sx, sy));
+    std::push_heap(open_heap.begin(), open_heap.end());
 
-    while (!open.empty()) {
-        // Find lowest f in open list
-        int best_i = 0;
-        for (size_t i = 1; i < open.size(); ++i)
-            if (nodes[open[i]].f < nodes[open[best_i]].f)
-                best_i = i;
+    while (!open_heap.empty()) {
+        std::pop_heap(open_heap.begin(), open_heap.end());
+        int cur_idx = open_heap.back().second;
+        open_heap.pop_back();
 
-        int cur_idx = open[best_i];
         auto& cur = nodes[cur_idx];
-        open.erase(open.begin() + best_i);
-
         if (cur.closed) continue;
         cur.closed = true;
 
         if (cur.x == ex && cur.y == ey) {
-            // Reconstruct path including start cell
             std::vector<std::pair<int,int>> path;
             int cx = ex, cy = ey;
             path.push_back({cx, cy});
@@ -84,8 +79,8 @@ std::vector<std::pair<int,int>> pathfind(
                 nb.f = ng + static_cast<float>(std::abs(nx - ex) + std::abs(ny - ey));
                 nb.px = cur.x;
                 nb.py = cur.y;
-                if (std::find(open.begin(), open.end(), nidx) == open.end())
-                    open.push_back(nidx);
+                open_heap.emplace_back(nb.f, nidx);
+                std::push_heap(open_heap.begin(), open_heap.end());
             }
         }
     }

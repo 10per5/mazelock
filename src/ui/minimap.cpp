@@ -36,9 +36,10 @@ void draw_minimap(Framebuffer& fb, const MazeGenerator& maze,
             fb.put_pixel(ox + px, oy + py, 0x88000000);
 
     // Build path set before drawing so both layers can reference it
-    std::unordered_set<std::pair<int,int>, PairHash> path_set;
+    static std::unordered_set<std::pair<int,int>, PairHash> path_set;
+    path_set.clear();
     if (path && !path->empty())
-        path_set = std::unordered_set<std::pair<int,int>, PairHash>(path->begin(), path->end());
+        path_set.insert(path->begin(), path->end());
 
     // Draw path fill (magenta) — smaller centred square so it doesn't cover the full block
     int inner = std::max(1, cs - 2);

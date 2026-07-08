@@ -24,7 +24,10 @@
 
 #include <unistd.h>
 
-World::~World() = default;
+World::~World() {
+    delete g_logger;
+    g_logger = nullptr;
+}
 
 World::World(Config& cfg, int argc, char* argv[])
     : cfg_(cfg)

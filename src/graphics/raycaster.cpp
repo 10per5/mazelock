@@ -117,7 +117,10 @@ void Raycaster::cast(const MazeGenerator& maze, float pos_x, float pos_y, float 
         } else {
             wall_x = pos_x + perp_dist * ray_dir_x;
         }
-        wall_x -= std::floor(wall_x);
+        wall_x -= static_cast<int>(wall_x);
+
+        int wall_tx = (wt_w > 0) ? static_cast<int>(wall_x * wt_w) % wt_w : 0;
+        float wall_y_step = (draw_end > draw_start) ? 1.0f / (draw_end - draw_start + 1) : 1.0f;
 
         for (int y = 0; y < RENDER_H; ++y) {
             if (y < draw_start) {
@@ -140,10 +143,9 @@ void Raycaster::cast(const MazeGenerator& maze, float pos_x, float pos_y, float 
                 }
             } else if (y <= draw_end) {
                 if (wt_w > 0 && wt_h > 0) {
-                    int tx = static_cast<int>(wall_x * wt_w) % wt_w;
-                    float wall_y = static_cast<float>(y - draw_start) / (draw_end - draw_start + 1);
+                    float wall_y = (y - draw_start) * wall_y_step;
                     int ty = static_cast<int>(wall_y * wt_h) % wt_h;
-                    uint32_t c = wall_tex_->pixel(tx, ty);
+                    uint32_t c = wall_tex_->pixel(wall_tx, ty);
                     if (side == 1) {
                         int r = ((c >> 16) & 0xFF) * 3 / 4;
                         int g = ((c >>  8) & 0xFF) * 3 / 4;
@@ -153,10 +155,10 @@ void Raycaster::cast(const MazeGenerator& maze, float pos_x, float pos_y, float 
                     color_buffer_[y * RENDER_W + x] = c;
                 } else {
                     uint32_t c = (side == 0) ? 0xFFAAAAAA : 0xFFCCCCCC;
-                    int tx = static_cast<int>(wall_x * 8);
-                    float wall_y = static_cast<float>(y - draw_start) / (draw_end - draw_start + 1);
+                    int check_tx = static_cast<int>(wall_x * 8);
+                    float wall_y = (y - draw_start) * wall_y_step;
                     int ty = static_cast<int>(wall_y * 8);
-                    if ((tx + ty) & 1) {
+                    if ((check_tx + ty) & 1) {
                         int r = ((c >> 16) & 0xFF) * 3 / 4;
                         int g = ((c >>  8) & 0xFF) * 3 / 4;
                         int b = (c        & 0xFF) * 3 / 4;

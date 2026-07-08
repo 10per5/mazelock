@@ -25,6 +25,7 @@ private:
     bool on_step_complete(const MazeGenerator& maze);
 
     std::mt19937 rng_{std::random_device{}()};
+    std::uniform_int_distribution<int> random_explore_dist_{0, 19};
 
     int pause_ = 0;
     int reverse_pause_ = 0;
